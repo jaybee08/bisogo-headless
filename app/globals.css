@@ -101,6 +101,22 @@ body {
   }
 }
 
+/* Toast slide-down animation */
+@keyframes tb_toast_slide_down_220ms {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tb-toast-in {
+  animation: tb_toast_slide_down_220ms 220ms ease-out both;
+}
+
 .prose :where(a):not(:where([class~="not-prose"],[class~="not-prose"] *)) {
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
