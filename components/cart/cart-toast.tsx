@@ -15,34 +15,43 @@ function money(n?: number) {
 export function CartToastStack() {
   const toasts = useCartUI((s) => s.toasts);
   const hideToast = useCartUI((s) => s.hideToast);
-  const count = useCart((s) => s.count());
+
+  // avoid hydration mismatch for persisted cart
+  const hasHydrated = useCart((s) => s.hasHydrated);
+  const count = useCart((s) => (hasHydrated ? s.count() : 0));
 
   if (!toasts.length) return null;
 
   return (
     <div
       className="
-        fixed left-1/2 top-4 z-[60] w-[calc(100%-24px)] max-w-[420px] -translate-x-1/2
-        sm:left-auto sm:right-6 sm:top-6 sm:translate-x-0
+        fixed z-[60]
+        top-[calc(env(safe-area-inset-top)+16px)]
+        left-1/2 -translate-x-1/2
+        w-[min(560px,calc(100vw-24px))]
+        sm:left-auto sm:right-6 sm:translate-x-0
+        pointer-events-none
       "
       aria-live="polite"
       aria-atomic="true"
     >
-      <div className="grid gap-3">
+      <div className="grid gap-3 overflow-visible">
         {toasts.map((t, idx) => {
           const p = t.product;
+
           return (
             <div
               key={t.id}
               className="
-                rounded-[var(--radius)] border border-[color:var(--color-border)]
+                tb-toast-in
+                pointer-events-auto
+                w-full
+                rounded-[var(--radius)]
+                border border-[color:var(--color-border)]
                 bg-white shadow-lg
-                transition-all duration-200
-                animate-[tb_toast_in_220ms_ease-out]
               "
               style={{
-                // subtle stacked feel
-                transform: `translateY(${idx * 6}px) scale(${1 - idx * 0.02})`,
+                marginTop: idx ? idx * 6 : 0, // stacked feel without breaking animation
                 opacity: 1 - idx * 0.08,
               }}
             >
@@ -55,13 +64,12 @@ export function CartToastStack() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <div className="text-sm font-semibold">
+                        <div className="truncate text-sm font-semibold">
                           {t.title ?? "Added to cart"}
                         </div>
 
-                        {/* Cart count badge */}
                         {count > 0 ? (
-                          <span className="inline-flex items-center gap-1 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-2 py-0.5 text-[11px] text-[color:var(--color-muted-foreground)]">
+                          <span className="shrink-0 inline-flex items-center gap-1 rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-2 py-0.5 text-[11px] text-[color:var(--color-muted-foreground)]">
                             <ShoppingBag className="h-3.5 w-3.5" />
                             {count}
                           </span>
@@ -69,7 +77,7 @@ export function CartToastStack() {
                       </div>
 
                       {t.message ? (
-                        <div className="mt-0.5 text-xs text-[color:var(--color-muted-foreground)]">
+                        <div className="mt-0.5 line-clamp-2 text-xs text-[color:var(--color-muted-foreground)]">
                           {t.message}
                         </div>
                       ) : null}
@@ -78,7 +86,7 @@ export function CartToastStack() {
                     <button
                       type="button"
                       onClick={() => hideToast(t.id)}
-                      className="rounded-md p-1 hover:bg-[color:var(--color-muted)]"
+                      className="shrink-0 rounded-md p-1 hover:bg-[color:var(--color-muted)]"
                       aria-label="Close"
                     >
                       <X className="h-4 w-4" />
@@ -87,7 +95,7 @@ export function CartToastStack() {
 
                   {p ? (
                     <div className="mt-3 flex items-center gap-3">
-                      <div className="relative h-12 w-12 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-muted)]">
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-muted)]">
                         {p.image ? (
                           <Image
                             src={p.image}
@@ -107,13 +115,23 @@ export function CartToastStack() {
                         </div>
                       </div>
 
-                      <Button asChild size="sm" onClick={() => hideToast(t.id)}>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => hideToast(t.id)}
+                      >
                         <Link href="/cart">View cart</Link>
                       </Button>
                     </div>
                   ) : (
                     <div className="mt-3">
-                      <Button asChild size="sm" onClick={() => hideToast(t.id)}>
+                      <Button
+                        asChild
+                        size="sm"
+                        className="shrink-0"
+                        onClick={() => hideToast(t.id)}
+                      >
                         <Link href="/cart">View cart</Link>
                       </Button>
                     </div>
