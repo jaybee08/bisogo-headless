@@ -1,88 +1,121 @@
+// lib/seo/jsonld.tsx
 import React from "react";
 
-export function JsonLd({ data }: { data: Record<string, any> }) {
+export type JsonLd = Record<string, any>;
+
+type AnyObj = Record<string, any>;
+
+export function clean<T>(input: T): T {
+  if (input === null || input === undefined) return input;
+
+  if (Array.isArray(input)) {
+    return input.map((x) => clean(x)) as unknown as T;
+  }
+
+  if (typeof input !== "object") return input;
+
+  const obj = input as unknown as AnyObj;
+
+  for (const k of Object.keys(obj)) {
+    const v = obj[k];
+
+    if (v === undefined || v === null || v === "") {
+      delete obj[k];
+      continue;
+    }
+
+    if (Array.isArray(v)) {
+      obj[k] = v.map((x) => clean(x));
+      continue;
+    }
+
+    if (typeof v === "object") {
+      obj[k] = clean(v);
+    }
+  }
+
+  return input;
+}
+
+/**
+ * Renders JSON-LD safely in App Router.
+ */
+export function JsonLd({ data }: { data: JsonLd }) {
   return (
     <script
       type="application/ld+json"
       // eslint-disable-next-line react/no-danger
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(data) }}
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(clean(data)) }}
     />
   );
 }
 
-export function articleJsonLd(input: {
-  url: string;
-  title: string;
-  description?: string;
-  image?: string;
-  datePublished?: string;
-  dateModified?: string;
-  authorName?: string;
-}) {
-  const obj: Record<string, any> = {
-    "@context": "https://schema.org",
-    "@type": "Article",
-    mainEntityOfPage: input.url,
-    headline: input.title,
-    description: input.description,
-    datePublished: input.datePublished,
-    dateModified: input.dateModified || input.datePublished,
-    author: input.authorName ? { "@type": "Person", name: input.authorName } : undefined,
-    image: input.image ? [input.image] : undefined
-  };
-  return clean(obj);
-}
-
-export function productJsonLd(input: {
-  url: string;
-  name: string;
-  description?: string;
-  image?: string[];
-  sku?: string;
-  price: number;
-  currency: string;
-  availability: "InStock" | "OutOfStock";
-}) {
-  const obj: Record<string, any> = {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: input.name,
-    description: input.description,
-    sku: input.sku,
-    image: input.image,
-    offers: {
-      "@type": "Offer",
-      url: input.url,
-      priceCurrency: input.currency,
-      price: input.price,
-      availability: `https://schema.org/${input.availability}`
-    }
-  };
-  return clean(obj);
-}
-
-function clean<T extends Record<string, any>>(obj: T): T {
-  for (const k of Object.keys(obj)) {
-    const v = obj[k];
-    if (v === undefined || v === null || v === "") delete obj[k];
-    else if (typeof v === "object" && !Array.isArray(v)) obj[k] = clean(v);
-  }
-  return obj;
-}
-
+/**
+ * Simple WebPage JSON-LD helper used by /p/[slug] and /product/[slug].
+ */
 export function webpageJsonLd(input: {
   url: string;
   name: string;
-  description?: string;
-}) {
-  const { url, name, description } = input;
-
-  return {
+  description?: string | null;
+  image?: string | null;
+  datePublished?: string | null;
+  dateModified?: string | null;
+}): JsonLd {
+  const data: JsonLd = {
     "@context": "https://schema.org",
     "@type": "WebPage",
-    "@id": url,
-    url,
-    name,
-    description: description || undefined,
+    url: input.url,
+    name: input.name,
+    description: input.description || undefined,
   };
+
+  if (input.image) data.image = input.image;
+  if (input.datePublished) data.datePublished = input.datePublished;
+  if (input.dateModified) data.dateModified = input.dateModified;
+
+  return clean(data);
+}
+
+/**
+ * Product JSON-LD helper used by /product/[slug]
+ */
+export function productJsonLd(input: {
+  url: string;
+  name: string;
+  description?: string | null;
+  image?: string | null;
+  currency?: string | null;
+  price?: number | string | null;
+  sku?: string | null;
+  brand?: string | null;
+  availability?: "InStock" | "OutOfStock" | "PreOrder" | string | null;
+}): JsonLd {
+  const priceNum =
+    input.price === null || input.price === undefined
+      ? null
+      : typeof input.price === "number"
+      ? input.price
+      : Number(String(input.price).replace(/[^0-9.]/g, ""));
+
+  const data: JsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    url: input.url,
+    name: input.name,
+    description: input.description || undefined,
+    image: input.image ? [input.image] : undefined,
+    sku: input.sku || undefined,
+    brand: input.brand ? { "@type": "Brand", name: input.brand } : undefined,
+    offers: {
+      "@type": "Offer",
+      url: input.url,
+      priceCurrency: input.currency || undefined,
+      price: Number.isFinite(priceNum as number) ? String(priceNum) : undefined,
+      availability: input.availability
+        ? `https://schema.org/${input.availability}`
+        : undefined,
+    },
+  };
+
+  return clean(data);
 }
