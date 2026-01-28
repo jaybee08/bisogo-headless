@@ -1,0 +1,107 @@
+
+/* Tailwind layers */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Cleaner, less rounded */
+  --radius: 10px;
+
+  --color-background: #ffffff;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f172a;
+  --color-foreground: #0f172a;
+
+  --color-muted: #f1f5f9;
+  --color-muted-foreground: #475569;
+
+  --color-border: #e2e8f0;
+  --color-ring: #94a3b8;
+
+  --color-primary: #0f172a;
+  --color-primary-foreground: #ffffff;
+
+    /* Tailwind token bridge (matches tailwind.config.ts rgb(var(--bg)) etc.) */
+  --bg: 255 255 255;
+  --fg: 15 23 42;
+  --muted: 241 245 249;
+  --border: 226 232 240;
+  --ring: 148 163 184;
+  --shadow: 0 0 #0000;
+}
+
+html, body { height: 100%; }
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.container {
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+  max-width: 1440px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+@media (min-width: 640px) {
+  .container {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .container {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+}
+
+/* Skeleton shimmer (Facebook-like) */
+@keyframes skeleton-shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: var(--color-muted);
+  border-radius: var(--radius);
+}
+
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.55),
+    transparent
+  );
+  animation: skeleton-shimmer 1.1s infinite;
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton::after {
+    animation: none;
+  }
+}
+
+.prose :where(a):not(:where([class~="not-prose"],[class~="not-prose"] *)) {
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}

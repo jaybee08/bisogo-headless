@@ -1,0 +1,12 @@
+{
+  "version": "5",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "0000",
+      "when": 1769171056017,
+      "tag": "0000_init"
+    }
+  ]
+}

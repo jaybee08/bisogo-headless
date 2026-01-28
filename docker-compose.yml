@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: bisogo-postgres
+    environment:
+      POSTGRES_DB: bisogo
+      POSTGRES_USER: bisogo
+      POSTGRES_PASSWORD: bisogo
+    ports:
+      - "5432:5432"
+    volumes:
+      - bisogo_pg:/var/lib/postgresql/data
+volumes:
+  bisogo_pg:
