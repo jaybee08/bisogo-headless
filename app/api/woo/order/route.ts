@@ -5,27 +5,52 @@ import { wooFetch } from "@/lib/woo/rest";
 export const runtime = "nodejs";
 
 function sanitizeOrder(order: any) {
-  // Only return what you need for the receipt UI
   return {
     id: order?.id,
-    number: order?.number,
-    order_key: order?.order_key,
-    status: order?.status,
-    currency: order?.currency,
-    total: order?.total,
-    date_created: order?.date_created,
-    payment_method_title: order?.payment_method_title,
+    number: String(order?.number ?? ""),
+    order_key: String(order?.order_key ?? ""),
+    status: String(order?.status ?? ""),
+    currency: String(order?.currency ?? ""),
+    date_created: String(order?.date_created ?? ""),
+    payment_method_title: String(order?.payment_method_title ?? ""),
+
+    // totals (strings from Woo)
+    total: String(order?.total ?? ""),
+    shipping_total: String(order?.shipping_total ?? ""),
+    discount_total: String(order?.discount_total ?? ""),
+    total_tax: String(order?.total_tax ?? ""),
+
+    // email + addresses
     billing: {
-      email: order?.billing?.email,
-      first_name: order?.billing?.first_name,
-      last_name: order?.billing?.last_name,
+      email: String(order?.billing?.email ?? ""),
+      first_name: String(order?.billing?.first_name ?? ""),
+      last_name: String(order?.billing?.last_name ?? ""),
+      address_1: String(order?.billing?.address_1 ?? ""),
+      address_2: String(order?.billing?.address_2 ?? ""),
+      city: String(order?.billing?.city ?? ""),
+      state: String(order?.billing?.state ?? ""),
+      postcode: String(order?.billing?.postcode ?? ""),
+      country: String(order?.billing?.country ?? ""),
     },
+    shipping: {
+      first_name: String(order?.shipping?.first_name ?? ""),
+      last_name: String(order?.shipping?.last_name ?? ""),
+      address_1: String(order?.shipping?.address_1 ?? ""),
+      address_2: String(order?.shipping?.address_2 ?? ""),
+      city: String(order?.shipping?.city ?? ""),
+      state: String(order?.shipping?.state ?? ""),
+      postcode: String(order?.shipping?.postcode ?? ""),
+      country: String(order?.shipping?.country ?? ""),
+    },
+
+    customer_note: String(order?.customer_note ?? ""),
+
     line_items: Array.isArray(order?.line_items)
       ? order.line_items.map((i: any) => ({
-          id: i?.id,
-          name: i?.name,
-          quantity: i?.quantity,
-          total: i?.total,
+          id: Number(i?.id ?? 0),
+          name: String(i?.name ?? ""),
+          quantity: Number(i?.quantity ?? 0),
+          total: String(i?.total ?? ""),
         }))
       : [],
   };
