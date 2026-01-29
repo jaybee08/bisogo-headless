@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/lib/cart/store";
 import { cn } from "@/lib/utils";
@@ -20,7 +21,10 @@ import { useEffect, useState } from "react";
 
 const nav = [
   { href: "/blog", label: "Travel" },
+  { href: "#tips", label: "Tips" },
+  { href: "#local", label: "Local Finds" },
   { href: "/shop", label: "Shop" },
+  { href: "#deals", label: "Deals" },
 ];
 
 export function Header() {
@@ -37,8 +41,14 @@ export function Header() {
     <header className="sticky top-0 z-40 border-b border-[color:var(--color-border)] bg-white/70 backdrop-blur">
       <div className="container flex h-16 items-center justify-between gap-6">
         <div className="flex items-center gap-6">
-          <Link href="/" className="text-lg font-semibold tracking-tight">
-            Bisogo
+          <Link href="/" className="inline-flex items-center">
+            <Image
+              src="/brand/bisogo-logo.svg"
+              alt="Bisogo"
+              width={260}
+              height={70}
+              priority
+            />
           </Link>
           <nav className="hidden items-center gap-5 md:flex">
             {nav.map((n) => {
