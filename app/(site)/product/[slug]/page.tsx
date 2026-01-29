@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { fetchProductBySlug, normalizePrice } from "@/lib/data";
@@ -9,10 +8,13 @@ import { stripHtml } from "@/lib/utils";
 import { AddToCart } from "@/components/product/add-to-cart";
 import { UspsCarousel } from "@/components/product/usps-carousel";
 import { ProductGallery } from "@/components/product/product-gallery";
+import { StickyAtc } from "@/components/product/sticky-atc";
+import { PdpFaq } from "@/components/product/pdp-faq";
+import { Ymal } from "@/components/product/ymal";
+import { listProductsSimple } from "@/lib/woo/rest";
 
 export const revalidate = 600;
 
-// IMPORTANT in your setup: params behaves like a Promise
 type Params = { slug: string };
 
 function decodeSlug(raw: string) {
@@ -30,11 +32,12 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug: rawSlug } = await params;
   const slug = decodeSlug(rawSlug);
-  if (!slug)
+  if (!slug) {
     return {
       title: "Product not found",
       robots: { index: false, follow: false },
     };
+  }
 
   const res = await fetchProductBySlug(slug);
   const product = res?.__rest ? res.product : res?.product;
@@ -49,7 +52,9 @@ export async function generateMetadata({
 
   const isRest = Boolean(res?.__rest);
   const name = product.name;
-  const shortDescription = isRest ? product.short_description : product.shortDescription;
+  const shortDescription = isRest
+    ? product.short_description
+    : product.shortDescription;
 
   const images: string[] = isRest
     ? (product.images || []).map((i: any) => i?.src).filter(Boolean)
@@ -87,7 +92,9 @@ export default async function ProductDetail({
   const isRest = Boolean(res?.__rest);
 
   const name = product.name;
-  const shortDescription = isRest ? product.short_description : product.shortDescription;
+  const shortDescription = isRest
+    ? product.short_description
+    : product.shortDescription;
   const description = isRest ? product.description : product.description;
 
   // --- images
@@ -120,13 +127,14 @@ export default async function ProductDetail({
 
   const stock = (() => {
     const status = (isRest ? product.stock_status : product.stockStatus) || "";
-    return String(status).toLowerCase().includes("out") ? "OutOfStock" : "InStock";
+    return String(status).toLowerCase().includes("out")
+      ? "OutOfStock"
+      : "InStock";
   })() as "InStock" | "OutOfStock";
 
   // --- productId mapping
   const productId = (() => {
     if (isRest) return Number(product.id);
-    // WPGraphQL Woo usually has databaseId on product
     if (typeof product.databaseId === "number") return product.databaseId;
     return 0;
   })();
@@ -156,7 +164,6 @@ export default async function ProductDetail({
         .filter((v: any) => typeof v.id === "number");
 
   // --- USPs from REST meta (_product_usps)
-  // (fetchProductBySlug should already attach `usps` in REST mode; this is safe either way)
   const usps = Array.isArray((product as any).usps) ? (product as any).usps : [];
 
   // --- JSON-LD
@@ -171,6 +178,47 @@ export default async function ProductDetail({
     availability: stock,
   });
 
+  // --- YMAL (REST only for now)
+  let ymalProducts: any[] = [];
+  if (isRest) {
+    try {
+      const catId = (product.categories || [])?.[0]?.id;
+      ymalProducts = await listProductsSimple({
+        per_page: 8,
+        category: catId,
+        exclude: Number(product.id),
+      });
+
+      if (!ymalProducts || ymalProducts.length < 4) {
+        ymalProducts = await listProductsSimple({
+          per_page: 8,
+          exclude: Number(product.id),
+        });
+      }
+    } catch {
+      ymalProducts = [];
+    }
+  }
+
+  const faqItems = [
+    {
+      q: "How long is delivery in the Philippines?",
+      a: "Usually 2–5 business days depending on your location.",
+    },
+    {
+      q: "Do you accept Cash on Delivery (COD)?",
+      a: "Yes, COD is available in supported areas.",
+    },
+    {
+      q: "Can I return or exchange?",
+      a: "Yes. If there’s an issue with your item, contact us within 7 days of delivery.",
+    },
+    {
+      q: "How do I choose the right size?",
+      a: "Check the Size options above. If unsure, message us and we’ll help.",
+    },
+  ];
+
   return (
     <div className="container py-10">
       <JsonLd data={ld} />
@@ -181,8 +229,8 @@ export default async function ProductDetail({
         </Link>
       </div>
 
+      {/* HERO ROW: image + primary buy box */}
       <div className="grid gap-10 lg:grid-cols-2">
-        {/* Gallery */}
         {/* Gallery */}
         <div className="space-y-3">
           <ProductGallery images={images} productName={name} />
@@ -193,6 +241,33 @@ export default async function ProductDetail({
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight">{name}</h1>
             <div className="text-lg font-medium">₱{basePrice.toFixed(2)}</div>
+
+            {/* CRO microcopy + trust badges */}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <span
+                className={[
+                  "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium",
+                  stock === "InStock"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-rose-200 bg-rose-50 text-rose-800",
+                ].join(" ")}
+              >
+                {stock === "InStock" ? "In stock" : "Out of stock"}
+              </span>
+
+              <span className="inline-flex items-center rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-2.5 py-1 text-xs text-[color:var(--color-muted-foreground)]">
+                COD available (selected areas)
+              </span>
+
+              <span className="inline-flex items-center rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-2.5 py-1 text-xs text-[color:var(--color-muted-foreground)]">
+                Ships in 2–5 days (PH)
+              </span>
+
+              <span className="inline-flex items-center rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-2.5 py-1 text-xs text-[color:var(--color-muted-foreground)]">
+                Secure checkout via WooCommerce
+              </span>
+            </div>
+            
             {shortDescription ? (
               <div
                 className="prose prose-slate max-w-none text-sm text-[color:var(--color-muted-foreground)]"
@@ -202,20 +277,24 @@ export default async function ProductDetail({
           </div>
 
           {/* Add to cart */}
-          <AddToCart
-            product={{
-              productId,
-              slug,
-              name,
-              image: mainImg,
-              basePrice,
-              currency,
-              attributes,
-              variations,
-            }}
-          />
+          
+          {/* Add to cart (target for StickyATC) */}
+          <div id="pdp-atc">
+            <AddToCart
+              product={{
+                productId,
+                slug,
+                name,
+                image: mainImg,
+                basePrice,
+                currency,
+                attributes,
+                variations,
+              }}
+            />
+          </div>
 
-          {/* USPs: scroll on mobile, grid on desktop */}
+          {/* USPs */}
           {usps.length ? <UspsCarousel usps={usps} /> : null}
 
           {/* Details */}
@@ -230,6 +309,33 @@ export default async function ProductDetail({
           ) : null}
         </div>
       </div>
+
+      {/* BELOW THE HERO: full-width CRO blocks */}
+      <section className="mt-12 space-y-10">
+        <PdpFaq items={faqItems} />
+
+        {isRest && ymalProducts.length ? (
+          <Ymal
+            products={ymalProducts.map((p: any) => ({
+              id: p.id,
+              slug: p.slug,
+              name: p.name,
+              price: p.price,
+              images: (p.images || []).map((i: any) => ({
+                src: i?.src,
+                alt: i?.alt,
+              })),
+            }))}
+          />
+        ) : null}
+      </section>
+
+      <StickyAtc
+        name={name}
+        priceLabel={`₱${basePrice.toFixed(2)}`}
+        image={mainImg}
+        targetId="pdp-atc"
+      />
     </div>
   );
 }

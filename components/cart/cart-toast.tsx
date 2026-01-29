@@ -28,8 +28,16 @@ export function CartToastStack() {
         fixed z-[60]
         top-[calc(env(safe-area-inset-top)+16px)]
         left-1/2 -translate-x-1/2
-        w-[min(560px,calc(100vw-24px))]
+
+        /* ✅ Mobile: clamp to viewport */
+        w-[calc(100vw-24px)]
+        max-w-[calc(100vw-24px)]
+
+        /* ✅ Desktop: keep your nice floating stack */
         sm:left-auto sm:right-6 sm:translate-x-0
+        sm:w-[min(560px,calc(100vw-48px))]
+        sm:max-w-[560px]
+
         pointer-events-none
       "
       aria-live="polite"
@@ -49,6 +57,9 @@ export function CartToastStack() {
                 rounded-[var(--radius)]
                 border border-[color:var(--color-border)]
                 bg-white shadow-lg
+
+                /* ✅ Prevent weird overflow on mobile */
+                overflow-hidden
               "
               style={{
                 marginTop: idx ? idx * 6 : 0, // stacked feel without breaking animation
@@ -63,7 +74,7 @@ export function CartToastStack() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
                         <div className="truncate text-sm font-semibold">
                           {t.title ?? "Added to cart"}
                         </div>
@@ -94,7 +105,16 @@ export function CartToastStack() {
                   </div>
 
                   {p ? (
-                    <div className="mt-3 flex items-center gap-3">
+                    <div
+                      className="
+                        mt-3
+                        flex items-center gap-3
+                        min-w-0
+                        /* ✅ Mobile: allow wrap so button doesn't push overflow */
+                        flex-wrap
+                        sm:flex-nowrap
+                      "
+                    >
                       <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-md border border-[color:var(--color-border)] bg-[color:var(--color-muted)]">
                         {p.image ? (
                           <Image
@@ -115,10 +135,11 @@ export function CartToastStack() {
                         </div>
                       </div>
 
+                      {/* ✅ Mobile: full-width CTA below, Desktop: right aligned */}
                       <Button
                         asChild
                         size="sm"
-                        className="shrink-0"
+                        className="shrink-0 w-full sm:w-auto"
                         onClick={() => hideToast(t.id)}
                       >
                         <Link href="/cart">View cart</Link>
@@ -129,7 +150,7 @@ export function CartToastStack() {
                       <Button
                         asChild
                         size="sm"
-                        className="shrink-0"
+                        className="shrink-0 w-full sm:w-auto"
                         onClick={() => hideToast(t.id)}
                       >
                         <Link href="/cart">View cart</Link>

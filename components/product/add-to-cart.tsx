@@ -33,8 +33,9 @@ export function AddToCart({ product }: { product: ProductForCart }) {
   const [selected, setSelected] = useState<Record<string, string>>({});
 
   const resolved = useMemo(() => {
-    if (!product.variations.length)
+    if (!product.variations.length) {
       return { price: product.basePrice, variationId: undefined as number | undefined };
+    }
 
     const match = product.variations.find((v) =>
       Object.entries(v.attributes).every(([k, v2]) => selected[k] === v2)
@@ -48,8 +49,10 @@ export function AddToCart({ product }: { product: ProductForCart }) {
     return product.attributes.every((a) => selected[a.name]);
   }, [product.attributes, selected]);
 
+  const priceLabel = `₱${resolved.price.toFixed(2)}`;
+
   return (
-    <div className="rounded-[var(--radius)] border border-[color:var(--color-border)] p-5">
+    <div id="pdp-atc" className="rounded-[var(--radius)] border border-[color:var(--color-border)] p-5">
       {product.attributes.length ? (
         <div className="space-y-4">
           {product.attributes.map((attr) => (
@@ -80,27 +83,40 @@ export function AddToCart({ product }: { product: ProductForCart }) {
         </div>
       ) : null}
 
-      <div className="mt-5 flex flex-wrap items-center gap-3">
-        <div className="flex items-center rounded-[calc(var(--radius)-2px)] border border-[color:var(--color-border)]">
-          <button
-            type="button"
-            className="h-10 w-10 hover:bg-[color:var(--color-muted)]"
-            onClick={() => setQty((q) => Math.max(1, q - 1))}
-          >
-            -
-          </button>
-          <div className="w-14 text-center text-sm">{qty}</div>
-          <button
-            type="button"
-            className="h-10 w-10 hover:bg-[color:var(--color-muted)]"
-            onClick={() => setQty((q) => q + 1)}
-          >
-            +
-          </button>
+      {/* Controls */}
+      <div className="mt-5 grid gap-3 sm:flex sm:flex-wrap sm:items-center sm:gap-3">
+        {/* Row 1 on mobile: qty + price */}
+        <div className="flex items-center justify-between gap-3 sm:contents">
+          <div className="flex items-center rounded-[calc(var(--radius)-2px)] border border-[color:var(--color-border)]">
+            <button
+              type="button"
+              className="h-10 w-10 hover:bg-[color:var(--color-muted)]"
+              onClick={() => setQty((q) => Math.max(1, q - 1))}
+              aria-label="Decrease quantity"
+            >
+              -
+            </button>
+            <div className="w-14 text-center text-sm">{qty}</div>
+            <button
+              type="button"
+              className="h-10 w-10 hover:bg-[color:var(--color-muted)]"
+              onClick={() => setQty((q) => q + 1)}
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Mobile price (prevents button from shrinking and wrapping) */}
+          <div className="sm:hidden text-sm font-medium text-[color:var(--color-foreground)]">
+            {priceLabel}
+          </div>
         </div>
 
+        {/* Button: full width on mobile, no wrap */}
         <Button
-          className="flex-1"
+          data-atc-primary="1"
+          className="h-11 w-full whitespace-nowrap sm:w-auto sm:flex-1"
           onClick={() => {
             const cartItem = {
               productId: product.productId,
@@ -133,8 +149,9 @@ export function AddToCart({ product }: { product: ProductForCart }) {
           {canAdd ? "Add to cart" : "Select options"}
         </Button>
 
-        <div className="text-sm text-[color:var(--color-muted-foreground)]">
-          ₱{resolved.price.toFixed(2)}
+        {/* Desktop price (right side) */}
+        <div className="hidden sm:block text-sm text-[color:var(--color-muted-foreground)]">
+          {priceLabel}
         </div>
       </div>
     </div>
