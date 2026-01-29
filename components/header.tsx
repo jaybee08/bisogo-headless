@@ -43,10 +43,10 @@ export function Header() {
         <div className="flex items-center gap-6">
           <Link href="/" className="inline-flex items-center">
             <Image
-              src="/brand/bisogo-logo.svg"
+              src="/brand/bisogo-logo-520x140.svg"
               alt="Bisogo"
-              width={260}
-              height={70}
+              width={130}
+              height={30}
               priority
             />
           </Link>
