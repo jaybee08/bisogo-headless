@@ -125,7 +125,6 @@ export async function fetchPageBySlug(slug: string) {
   const uri = clean.startsWith("/") ? clean : `/${clean}`;
   const uriWithSlash = uri.endsWith("/") ? uri : `${uri}/`;
 
-  // Prefer PAGE_BY_SLUG_QUERY (idType: URI), but you also have PAGE_BY_URI_QUERY available
   const r = await gqlSafeRequest<any>(
     PAGE_BY_SLUG_QUERY,
     { slug: uriWithSlash },
@@ -134,7 +133,6 @@ export async function fetchPageBySlug(slug: string) {
 
   if (r.ok) return r.data;
 
-  // fallback query if you want:
   const r2 = await gqlSafeRequest<any>(
     PAGE_BY_URI_QUERY,
     { uri: uriWithSlash },
@@ -161,7 +159,6 @@ export async function fetchProductsIndex(opts: {
   categorySlug?: string | null;
   sort?: string;
 }) {
-  // If WP is down, this check will be false and we go REST.
   const useGql = await isWooGraphQLAvailable();
 
   if (useGql) {
@@ -177,7 +174,6 @@ export async function fetchProductsIndex(opts: {
     );
 
     if (!r.ok) {
-      // degrade to REST fallback instead of failing
       wooGraphQLAvailable = false;
     } else {
       const data = r.data;
@@ -225,7 +221,6 @@ export async function fetchProductsIndex(opts: {
 
     return { __rest: true as const, products, categories };
   } catch (e: any) {
-    // ✅ Return safe empty state (no crash)
     return {
       __rest: true as const,
       __error: errMsg(e),
@@ -233,6 +228,66 @@ export async function fetchProductsIndex(opts: {
       categories: [],
     };
   }
+}
+
+/** --------------------------
+ *  ✅ Product USPs helpers
+ *  -------------------------- */
+
+type ProductUSP = { title: string; text: string };
+
+/**
+ * Handles both REST meta_data (array of { key, value })
+ * and common GQL shapes like:
+ * - metaData: [{ key, value }]
+ * - metaData: { nodes: [{ key, value }] }
+ * - metaData: { edges: [{ node: { key, value } }] }
+ */
+function extractMetaArray(anyProduct: any): Array<{ key: string; value: any }> {
+  const md =
+    anyProduct?.meta_data ??
+    anyProduct?.metaData ??
+    anyProduct?.meta_data?.nodes ??
+    anyProduct?.metaData?.nodes ??
+    null;
+
+  if (Array.isArray(md)) return md as any;
+
+  const edges = anyProduct?.metaData?.edges;
+  if (Array.isArray(edges)) {
+    return edges
+      .map((e: any) => e?.node)
+      .filter(Boolean) as Array<{ key: string; value: any }>;
+  }
+
+  return [];
+}
+
+function parseProductUsps(meta_data?: Array<{ key: string; value: any }>): ProductUSP[] {
+  const raw = meta_data?.find((m) => m.key === "_product_usps")?.value;
+  if (!raw) return [];
+
+  try {
+    const arr = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map((x) => ({
+        title: String(x?.title ?? "").trim(),
+        text: String(x?.text ?? "").trim(),
+      }))
+      .filter((x) => x.title || x.text)
+      .slice(0, 3);
+  } catch {
+    return [];
+  }
+}
+
+function attachUsps(product: any) {
+  if (!product) return product;
+  const meta = extractMetaArray(product);
+  const usps = parseProductUsps(meta);
+  // attach without breaking existing usage
+  return { ...product, usps };
 }
 
 export async function fetchProductBySlug(slug: string) {
@@ -248,7 +303,22 @@ export async function fetchProductBySlug(slug: string) {
       { revalidate: 600, tags: ["products"], timeoutMs: 8000 }
     );
 
-    if (r.ok) return r.data;
+    if (r.ok) {
+      // We try to attach `usps` onto the returned product node (common shapes)
+      const data = r.data;
+
+      // common: data.product
+      if (data?.product) {
+        data.product = attachUsps(data.product);
+      }
+
+      // fallback: data.products.nodes[0]
+      if (data?.products?.nodes?.[0]) {
+        data.products.nodes[0] = attachUsps(data.products.nodes[0]);
+      }
+
+      return data;
+    }
 
     // degrade to REST if gql fails
     wooGraphQLAvailable = false;
@@ -256,7 +326,13 @@ export async function fetchProductBySlug(slug: string) {
 
   try {
     const product = await getProductBySlug(clean);
-    return { __rest: true as const, product, __error: product ? undefined : "Product not found" };
+    const patched = attachUsps(product);
+
+    return {
+      __rest: true as const,
+      product: patched,
+      __error: patched ? undefined : "Product not found",
+    };
   } catch (e: any) {
     return { __rest: true as const, product: null, __error: errMsg(e) };
   }
