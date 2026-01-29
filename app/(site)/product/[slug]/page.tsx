@@ -8,6 +8,7 @@ import { JsonLd, productJsonLd } from "@/lib/seo/jsonld";
 import { stripHtml } from "@/lib/utils";
 import { AddToCart } from "@/components/product/add-to-cart";
 import { UspsCarousel } from "@/components/product/usps-carousel";
+import { ProductGallery } from "@/components/product/product-gallery";
 
 export const revalidate = 600;
 
@@ -182,40 +183,9 @@ export default async function ProductDetail({
 
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Gallery */}
+        {/* Gallery */}
         <div className="space-y-3">
-          <div className="aspect-square overflow-hidden rounded-[var(--radius)] border border-[color:var(--color-border)] bg-[color:var(--color-muted)]">
-            {mainImg ? (
-              <Image
-                src={mainImg}
-                alt={images?.[0]?.alt || name}
-                width={1400}
-                height={1400}
-                className="h-full w-full object-cover"
-                priority
-              />
-            ) : (
-              <div className="h-full w-full" />
-            )}
-          </div>
-
-          {images.length > 1 ? (
-            <div className="grid grid-cols-4 gap-3">
-              {images.slice(1, 5).map((img: any, idx: number) => (
-                <div
-                  key={`${img.url}-${idx}`}
-                  className="aspect-square overflow-hidden rounded-[var(--radius)] border border-[color:var(--color-border)] bg-[color:var(--color-muted)]"
-                >
-                  <Image
-                    src={img.url}
-                    alt={img.alt || name}
-                    width={400}
-                    height={400}
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-              ))}
-            </div>
-          ) : null}
+          <ProductGallery images={images} productName={name} />
         </div>
 
         {/* Info */}
