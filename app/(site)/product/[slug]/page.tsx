@@ -7,6 +7,7 @@ import { canonicalFor } from "@/lib/seo/metadata";
 import { JsonLd, productJsonLd } from "@/lib/seo/jsonld";
 import { stripHtml } from "@/lib/utils";
 import { AddToCart } from "@/components/product/add-to-cart";
+import { UspsCarousel } from "@/components/product/usps-carousel";
 
 export const revalidate = 600;
 
@@ -28,7 +29,11 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug: rawSlug } = await params;
   const slug = decodeSlug(rawSlug);
-  if (!slug) return { title: "Product not found", robots: { index: false, follow: false } };
+  if (!slug)
+    return {
+      title: "Product not found",
+      robots: { index: false, follow: false },
+    };
 
   const res = await fetchProductBySlug(slug);
   const product = res?.__rest ? res.product : res?.product;
@@ -86,16 +91,20 @@ export default async function ProductDetail({
 
   // --- images
   const images = isRest
-    ? (product.images || []).map((i: any) => ({
-        url: i?.src,
-        alt: i?.alt || name,
-      })).filter((x: any) => Boolean(x.url))
+    ? (product.images || [])
+        .map((i: any) => ({
+          url: i?.src,
+          alt: i?.alt || name,
+        }))
+        .filter((x: any) => Boolean(x.url))
     : [
         ...(product.image?.sourceUrl
-          ? [{
-              url: product.image.sourceUrl,
-              alt: product.image.altText || name,
-            }]
+          ? [
+              {
+                url: product.image.sourceUrl,
+                alt: product.image.altText || name,
+              },
+            ]
           : []),
         ...((product.galleryImages?.nodes || [])
           .map((n: any) => ({ url: n?.sourceUrl, alt: n?.altText || name }))
@@ -144,6 +153,10 @@ export default async function ProductDetail({
           }, {}),
         }))
         .filter((v: any) => typeof v.id === "number");
+
+  // --- USPs from REST meta (_product_usps)
+  // (fetchProductBySlug should already attach `usps` in REST mode; this is safe either way)
+  const usps = Array.isArray((product as any).usps) ? (product as any).usps : [];
 
   // --- JSON-LD
   const ld = productJsonLd({
@@ -232,21 +245,8 @@ export default async function ProductDetail({
             }}
           />
 
-          {/* CRO / Trust */}
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div className="rounded-[var(--radius)] border border-[color:var(--color-border)] p-4 text-sm">
-              <div className="font-semibold">Fast checkout</div>
-              <div className="mt-1 text-[color:var(--color-muted-foreground)]">Pay via WooCommerce.</div>
-            </div>
-            <div className="rounded-[var(--radius)] border border-[color:var(--color-border)] p-4 text-sm">
-              <div className="font-semibold">Secure payments</div>
-              <div className="mt-1 text-[color:var(--color-muted-foreground)]">Gateway processed on CMS.</div>
-            </div>
-            <div className="rounded-[var(--radius)] border border-[color:var(--color-border)] p-4 text-sm">
-              <div className="font-semibold">Local delivery</div>
-              <div className="mt-1 text-[color:var(--color-muted-foreground)]">PH-ready setup.</div>
-            </div>
-          </div>
+          {/* USPs: scroll on mobile, grid on desktop */}
+          {usps.length ? <UspsCarousel usps={usps} /> : null}
 
           {/* Details */}
           {description ? (
