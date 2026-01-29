@@ -117,6 +117,60 @@ body {
   animation: tb_toast_slide_down_220ms 220ms ease-out both;
 }
 
+@keyframes tbOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes tbOverlayOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes tbSheetInLeft {
+  from { transform: translateX(-14px) scale(0.985); opacity: 0; }
+  to { transform: translateX(0) scale(1); opacity: 1; }
+}
+@keyframes tbSheetOutLeft {
+  from { transform: translateX(0) scale(1); opacity: 1; }
+  to { transform: translateX(-14px) scale(0.985); opacity: 0; }
+}
+
+@keyframes tbSheetInRight {
+  from { transform: translateX(14px) scale(0.985); opacity: 0; }
+  to { transform: translateX(0) scale(1); opacity: 1; }
+}
+@keyframes tbSheetOutRight {
+  from { transform: translateX(0) scale(1); opacity: 1; }
+  to { transform: translateX(14px) scale(0.985); opacity: 0; }
+}
+
+@keyframes tbSheetInTop {
+  from { transform: translateY(-14px) scale(0.985); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes tbSheetOutTop {
+  from { transform: translateY(0) scale(1); opacity: 1; }
+  to { transform: translateY(-14px) scale(0.985); opacity: 0; }
+}
+
+@keyframes tbSheetInBottom {
+  from { transform: translateY(14px) scale(0.985); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes tbSheetOutBottom {
+  from { transform: translateY(0) scale(1); opacity: 1; }
+  to { transform: translateY(14px) scale(0.985); opacity: 0; }
+}
+
+/* Respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  [data-state="open"],
+  [data-state="closed"] {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
 .prose :where(a):not(:where([class~="not-prose"],[class~="not-prose"] *)) {
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
