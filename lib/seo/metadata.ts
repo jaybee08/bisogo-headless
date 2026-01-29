@@ -15,6 +15,11 @@ export function baseMetadata(): Metadata {
       default: title,
       template: "%s · Bisogo"
     },
+    icons: {
+      icon: "/favicon.ico",
+      shortcut: "/favicon.ico",
+      apple: "/apple-touch-icon.png",
+    },
     description,
     alternates: { canonical: site },
     openGraph: {
