@@ -106,3 +106,21 @@ export async function createOrder(payload: any) {
   });
   return OrderResponse.parse(order);
 }
+
+export async function listProductsSimple(opts: {
+  per_page: number;
+  category?: number;
+  exclude?: number;
+}) {
+  const qs = new URLSearchParams({
+    per_page: String(opts.per_page),
+    status: "publish",
+    orderby: "date",
+    order: "desc",
+  });
+
+  if (opts.category) qs.set("category", String(opts.category));
+  if (opts.exclude) qs.set("exclude", String(opts.exclude));
+
+  return await wooFetch<any[]>(`/products?${qs.toString()}`);
+}
