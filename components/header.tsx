@@ -20,7 +20,10 @@ import { useEffect, useState } from "react";
 
 const nav = [
   { href: "/blog", label: "Travel" },
+  { href: "#tips", label: "Tips" },
+  { href: "#local", label: "Local Finds" },
   { href: "/shop", label: "Shop" },
+  { href: "#deals", label: "Deals" },
 ];
 
 export function Header() {
