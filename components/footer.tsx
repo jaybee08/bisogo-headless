@@ -7,7 +7,7 @@ export function Footer() {
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="font-medium text-[color:var(--color-foreground)]">Bisogo</div>
-            <div className="mt-1">Headless travel + commerce experience.</div>
+            <div className="mt-1">Stories, guides, and thoughtfully-made finds.</div>
           </div>
           <div className="flex flex-wrap gap-4">
             <Link href="/blog" className="hover:underline underline-offset-4">Blog</Link>

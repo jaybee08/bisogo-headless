@@ -6,6 +6,7 @@ import { EmptyState } from "@/components/state/empty";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { canonicalFor } from "@/lib/seo/metadata";
+import { NewsletterForm } from "@/components/newsletter-form";
 
 export const revalidate = 600;
 
@@ -79,10 +80,7 @@ export default async function Shop({
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Shop</h1>
           <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
-            Clean product browsing with a frontend cart and Woo checkout.
-          </p>
-          <p className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
-            Products source: {wooGql ? "WPGraphQL WooCommerce" : "WooCommerce REST fallback"}
+            New drops for camping, travel, and summer style—ships nationwide.
           </p>
         </div>
 
@@ -165,31 +163,23 @@ export default async function Shop({
 
         <aside className="space-y-6">
           <div className="rounded-[var(--radius)] border border-[color:var(--color-border)] p-4">
-            <div className="text-sm font-semibold">Cart</div>
+            <div className="text-sm font-semibold">Your cart</div>
             <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
-              Cart is stored in your browser and does not depend on WooCommerce cookies.
+              Items are saved on this device so you can pick up where you left off.
             </p>
             <div className="mt-4">
               <Button asChild variant="outline" className="w-full">
-                <Link href="/cart">Go to cart</Link>
+                <Link href="/cart">View cart</Link>
               </Button>
             </div>
           </div>
 
           <div className="rounded-[var(--radius)] border border-[color:var(--color-border)] p-4">
-            <div className="text-sm font-semibold">Need a page?</div>
+            <div className="text-sm font-semibold">Get updates</div>
             <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
-              WordPress pages are available at <span className="font-mono">/p/[slug]</span>.
+               New guides + curated drops, once a week.
             </p>
-            <div className="mt-4 flex gap-2 text-sm">
-              <Link href="/p/about" className="underline-offset-4 hover:underline">
-                About
-              </Link>
-              <span>·</span>
-              <Link href="/p/contact" className="underline-offset-4 hover:underline">
-                Contact
-              </Link>
-            </div>
+             <NewsletterForm />
           </div>
         </aside>
       </div>

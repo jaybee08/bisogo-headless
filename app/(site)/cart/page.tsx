@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/state/empty";
 import { Input } from "@/components/ui/input";
 import { useSession } from "next-auth/react";
+import { Lock } from "lucide-react";
 
 type CheckoutResponse = { redirectUrl: string };
 
@@ -71,7 +72,16 @@ export default function CartPage() {
   function validateGuest() {
     if (isAuthed) return null;
 
-    const req: Array<keyof Guest> = ["name", "email", "phone", "address1", "city", "state", "postcode", "country"];
+    const req: Array<keyof Guest> = [
+      "name",
+      "email",
+      "phone",
+      "address1",
+      "city",
+      "state",
+      "postcode",
+      "country",
+    ];
     for (const k of req) {
       if (!String(guest[k] || "").trim()) return `Please fill in ${k}.`;
     }
@@ -104,13 +114,14 @@ export default function CartPage() {
         dataJson = text ? JSON.parse(text) : null;
       } catch {}
 
-      if (!res.ok) throw new Error((dataJson && (dataJson.error || dataJson.message)) || text || "Checkout failed");
+      if (!res.ok)
+        throw new Error(
+          (dataJson && (dataJson.error || dataJson.message)) || text || "Checkout failed"
+        );
 
       const data = (dataJson || {}) as CheckoutResponse;
       if (!data.redirectUrl) throw new Error("Missing redirectUrl from server.");
 
-      // ✅ Don’t clear cart BEFORE redirect (safer).
-      // If you want: clear after user returns to /order success page.
       window.location.href = data.redirectUrl;
     } catch (e: any) {
       setError(e?.message || "Checkout failed");
@@ -151,7 +162,7 @@ export default function CartPage() {
             <span className="font-medium">₱{(hasHydrated ? subtotal : 0).toFixed(2)}</span>
           </div>
           <div className="mt-1 text-xs text-[color:var(--color-muted-foreground)]">
-            Taxes and shipping are calculated on the Woo checkout.
+            Taxes and shipping are calculated during checkout.
           </div>
 
           {!isAuthed ? (
@@ -162,16 +173,32 @@ export default function CartPage() {
               <Input placeholder="Email" value={guest.email} onChange={(e) => set("email", e.target.value)} />
               <Input placeholder="Phone" value={guest.phone} onChange={(e) => set("phone", e.target.value)} />
 
-              <Input placeholder="Address line 1" value={guest.address1} onChange={(e) => set("address1", e.target.value)} />
-              <Input placeholder="Address line 2 (optional)" value={guest.address2} onChange={(e) => set("address2", e.target.value)} />
+              <Input
+                placeholder="Address line 1"
+                value={guest.address1}
+                onChange={(e) => set("address1", e.target.value)}
+              />
+              <Input
+                placeholder="Address line 2 (optional)"
+                value={guest.address2}
+                onChange={(e) => set("address2", e.target.value)}
+              />
 
               <div className="grid grid-cols-2 gap-2">
                 <Input placeholder="City" value={guest.city} onChange={(e) => set("city", e.target.value)} />
-                <Input placeholder="State/Province" value={guest.state} onChange={(e) => set("state", e.target.value)} />
+                <Input
+                  placeholder="State/Province"
+                  value={guest.state}
+                  onChange={(e) => set("state", e.target.value)}
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-2">
-                <Input placeholder="Postal code" value={guest.postcode} onChange={(e) => set("postcode", e.target.value)} />
+                <Input
+                  placeholder="Postal code"
+                  value={guest.postcode}
+                  onChange={(e) => set("postcode", e.target.value)}
+                />
                 <Input placeholder="Country (PH)" value={guest.country} onChange={(e) => set("country", e.target.value)} />
               </div>
             </div>
@@ -193,8 +220,16 @@ export default function CartPage() {
             </Button>
           </div>
 
-          <div className="mt-5 text-xs text-[color:var(--color-muted-foreground)]">
-            Checkout happens on <span className="font-mono">cms.bisogo.ph</span> after a server-side order is created.
+          {/* Trust + redirect note (non-technical, low friction) */}
+          <div className="mt-5 space-y-2 text-sm text-[color:var(--color-muted-foreground)]">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--color-border)] bg-white/60 px-3 py-1">
+              <Lock className="h-4 w-4" aria-hidden="true" />
+              <span className="text-xs font-medium text-foreground/80">Secure checkout by Bisogo</span>
+            </div>
+
+            <p className="text-xs">
+              After you click Checkout, you’ll be redirected to our secure checkout to finalize payment.
+            </p>
           </div>
         </aside>
       </div>
