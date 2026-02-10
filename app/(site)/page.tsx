@@ -122,7 +122,7 @@ export default async function HomePage() {
                   {productCardData.slice(0, 3).map((p: any) => (
                     <Link
                       key={p.slug}
-                      href={`/shop/${p.slug}`}
+                      href={`/product/${p.slug}`}
                       className="group rounded-2xl border bg-white/70 p-2 transition hover:bg-white"
                     >
                       <div className="relative aspect-square overflow-hidden rounded-xl bg-gray-100">
