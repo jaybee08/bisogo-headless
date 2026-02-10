@@ -29,10 +29,10 @@ import {
 
 const nav = [
   { href: "/blog", label: "Travel" },
-  { href: "#tips", label: "Tips" },
-  { href: "#local", label: "Local Finds" },
+  // { href: "#tips", label: "Tips" },
+  // { href: "#local", label: "Local Finds" },
   { href: "/shop", label: "Shop" },
-  { href: "#deals", label: "Deals" },
+  // { href: "#deals", label: "Deals" },
 ];
 
 export function Header() {
