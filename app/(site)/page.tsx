@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { NewsletterForm } from "@/components/newsletter-form";
 import { fetchPostsIndex, fetchProductsIndex } from "@/lib/data";
@@ -44,29 +45,102 @@ export default async function HomePage() {
 
   return (
     <div>
-      <section className="bg-white">
-        <div className="container py-14 md:py-20">
-          <div className="max-w-2xl">
-            <div className="text-xs font-semibold tracking-widest uppercase text-[color:var(--color-muted-foreground)]">Travel editorial + merch</div>
-            <h1 className="mt-4 text-5xl font-semibold tracking-tight md:text-6xl">
-              Discover stories, guides, and thoughtfully-made merch.
-            </h1>
-            <p className="mt-5 text-base text-[color:var(--color-muted-foreground)]">
-              Bisogo is a headless experience: lightning-fast reads, clean shopping, and a seamless WooCommerce checkout.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Button asChild>
-                <Link href="/blog">Explore Travel</Link>
-              </Button>
-              <Button variant="outline" asChild>
-                <Link href="/shop">Shop Merch</Link>
-              </Button>
+      <section className="relative overflow-hidden">
+        {/* Background image */}
+        <div className="absolute inset-0">
+          <Image
+            src="/images/hero-2.jpg"
+            alt="Bisogo — Philippines travel stories and curated essentials"
+            fill
+            priority
+            className="object-cover"
+            sizes="100vw"
+          />
+          {/* subtle overlay for readability */}
+          <div className="absolute inset-0 bg-black/10" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/40 via-white/10 to-black/10" />
+        </div>
+
+        <div className="container relative py-14 md:py-20">
+          <div className="grid items-end gap-10 lg:grid-cols-12">
+            {/* Left panel */}
+            <div className="lg:col-span-7">
+              <div className="max-w-2xl rounded-3xl border border-white/30 bg-white/45 p-6 shadow-lg ring-1 ring-black/5 backdrop-blur-xl md:p-10">
+                <div className="text-xs font-semibold tracking-widest uppercase text-[color:var(--color-muted-foreground)]">
+                  PH travel blog + shop
+                </div>
+
+                <h1 className="mt-4 text-5xl font-semibold tracking-tight md:text-6xl">
+                  Stories, guides, and summer-ready finds.
+                </h1>
+
+                <p className="mt-5 text-base text-[color:var(--color-muted-foreground)]">
+                  From island weekends to mountain camps—read local travel guides and shop curated essentials:
+                  camping, travel, and warm-weather fits.
+                </p>
+
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Button asChild>
+                    <Link href="/blog">Explore Travel</Link>
+                  </Button>
+                  <Button variant="outline" asChild className="bg-white/70">
+                    <Link href="/shop">Shop Essentials</Link>
+                  </Button>
+                </div>
+
+                {/* chips */}
+                <div className="mt-6 flex flex-wrap gap-2">
+                  {["Camping", "Beach", "City", "Food", "Summer Fits"].map((label) => (
+                    <span
+                      key={label}
+                      className="rounded-full border bg-white/70 px-3 py-1 text-sm text-[color:var(--color-muted-foreground)] backdrop-blur"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-5 text-sm text-[color:var(--color-muted-foreground)]">
+                  Curated in the Philippines • New drops weekly • Ships nationwide
+                </div>
+
+                {/* Newsletter (moved lower, less competing with CTAs) */}
+                <div className="mt-8">
+                  <div className="text-sm font-medium">Get updates</div>
+                  <div className="mt-3">
+                    <NewsletterForm />
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <div className="mt-10">
-              <div className="text-sm font-medium">Get updates</div>
-              <div className="mt-3">
-                <NewsletterForm />
+            {/* Right floating "Top Picks" card */}
+            <div className="lg:col-span-5">
+              <div className="mx-auto max-w-md rounded-3xl border bg-white/70 p-5 shadow-sm backdrop-blur-md md:p-6">
+                <div className="text-sm font-semibold">Top Picks</div>
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  {productCardData.slice(0, 3).map((p: any) => (
+                    <Link
+                      key={p.slug}
+                      href={`/shop/${p.slug}`}
+                      className="group rounded-2xl border bg-white/70 p-2 transition hover:bg-white"
+                    >
+                      <div className="relative aspect-square overflow-hidden rounded-xl bg-gray-100">
+                        {p.image?.url ? (
+                          <Image
+                            src={p.image.url}
+                            alt={p.image.alt ?? p.name}
+                            fill
+                            className="object-cover transition group-hover:scale-[1.03]"
+                            sizes="120px"
+                          />
+                        ) : null}
+                      </div>
+                      <div className="mt-2 line-clamp-1 text-xs font-medium">{p.name}</div>
+                      <div className="text-[11px] text-[color:var(--color-muted-foreground)]">{p.price}</div>
+                    </Link>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -111,6 +185,7 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+      
     </div>
   );
 }
