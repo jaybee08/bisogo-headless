@@ -28,17 +28,17 @@ export function NewsletterForm() {
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="w-full">
-      <div className="flex w-full flex-col gap-3">
+      <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-center">
         <Input
           type="email"
           placeholder="you@domain.com"
           {...register("email")}
-          className="h-12 w-full"
+          className="h-12 w-full sm:flex-1"
         />
         <Button
           type="submit"
           disabled={formState.isSubmitting}
-          className="h-12 w-full"
+          className="h-12 w-full sm:w-auto"
         >
           {formState.isSubmitting ? "…" : "Subscribe"}
         </Button>

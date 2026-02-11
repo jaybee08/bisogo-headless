@@ -116,7 +116,7 @@ export default async function HomePage() {
 
             {/* Right floating "Top Picks" card */}
             <div className="lg:col-span-5">
-              <div className="mx-auto max-w-md rounded-3xl border bg-white/70 p-5 shadow-sm backdrop-blur-md md:p-6">
+              <div className="mx-auto max-w-md rounded-3xl border bg-white/70 p-5 shadow-sm md:p-6">
                 <div className="text-sm font-semibold">Top Picks</div>
                 <div className="mt-4 grid grid-cols-3 gap-3">
                   {productCardData.slice(0, 3).map((p: any) => (

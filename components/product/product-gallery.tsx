@@ -108,6 +108,8 @@ export function ProductGallery({
             alt={current?.alt || productName}
             width={1400}
             height={1400}
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            loading="eager"
             className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
             priority
           />
@@ -146,6 +148,7 @@ export function ProductGallery({
                   width={220}
                   height={220}
                   className="h-full w-full object-cover"
+                  sizes="56px"
                 />
               </button>
             ))}
@@ -172,6 +175,7 @@ export function ProductGallery({
                   alt={img.alt || productName}
                   width={160}
                   height={160}
+                  sizes="56px"
                   className="h-full w-full object-cover"
                 />
               </button>
