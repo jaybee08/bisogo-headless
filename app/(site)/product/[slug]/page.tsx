@@ -232,9 +232,14 @@ export default async function ProductDetail({
       {/* HERO ROW: image + primary buy box */}
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Gallery */}
-        <div className="space-y-3">
-          <ProductGallery images={images} productName={name} />
+      <div className="space-y-3 min-w-0">
+        <div className="w-full max-w-full overflow-x-clip sm:overflow-visible">
+          {/* clamp only on mobile, normal on desktop */}
+          <div className="mx-auto w-full max-w-[92vw] sm:mx-0 sm:max-w-none">
+            <ProductGallery images={images} productName={name} />
+          </div>
         </div>
+      </div>
 
         {/* Info */}
         <div className="space-y-6">
