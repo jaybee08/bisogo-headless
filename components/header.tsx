@@ -29,10 +29,7 @@ import {
 
 const nav = [
   { href: "/blog", label: "Travel" },
-  // { href: "#tips", label: "Tips" },
-  // { href: "#local", label: "Local Finds" },
   { href: "/shop", label: "Shop" },
-  // { href: "#deals", label: "Deals" },
 ];
 
 export function Header() {
@@ -42,6 +39,9 @@ export function Header() {
   const hasHydrated = useCart((s) => s.hasHydrated);
   const count = useCart((s) => (hasHydrated ? s.count() : 0));
 
+  // ✅ single mount flag used for:
+  // - preventing Radix Sheet SSR hydration mismatch
+  // - showing cart count safely
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
@@ -69,74 +69,92 @@ export function Header() {
         <div className="flex min-w-0 items-center gap-2 sm:gap-6">
           {/* Mobile menu button */}
           <div className="sm:hidden">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" aria-label="Open menu" className="h-9 w-9 p-0">
-                  <Menu className="h-5 w-5" />
-                </Button>
-              </SheetTrigger>
+            {mounted ? (
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    aria-label="Open menu"
+                    className="h-9 w-9 p-0"
+                    type="button"
+                  >
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </SheetTrigger>
 
-              <SheetContent side="left" className="w-[320px]">
-                <SheetHeader>
-                  <SheetTitle className="sr-only">Menu</SheetTitle>
-                </SheetHeader>
+                <SheetContent side="left" className="w-[320px]">
+                  <SheetHeader>
+                    {/* ✅ required for a11y + fixes Radix warning */}
+                    <SheetTitle className="sr-only">Menu</SheetTitle>
+                  </SheetHeader>
 
-                <div className="flex items-center gap-3 border-b pb-4">
-                  <Image
-                    src="/brand/bisogo-logo-520x140.svg"
-                    alt="Bisogo"
-                    width={170}
-                    height={44}
-                    className="block h-10 w-auto"
-                    priority
-                  />
-                </div>
+                  <div className="flex items-center gap-3 border-b pb-4">
+                    <Image
+                      src="/brand/bisogo-logo-520x140.svg"
+                      alt="Bisogo"
+                      width={170}
+                      height={44}
+                      className="block h-10 w-auto"
+                      priority
+                    />
+                  </div>
 
-                <nav className="mt-4 grid gap-2">
-                  {nav.map((n) => (
-                    <Link
-                      key={n.href}
-                      href={n.href}
-                      className="rounded-md px-3 py-2 text-base font-medium hover:bg-[color:var(--color-muted)]"
-                    >
-                      {n.label}
-                    </Link>
-                  ))}
-                </nav>
+                  <nav className="mt-4 grid gap-2">
+                    {nav.map((n) => (
+                      <Link
+                        key={n.href}
+                        href={n.href}
+                        className="rounded-md px-3 py-2 text-base font-medium hover:bg-[color:var(--color-muted)]"
+                      >
+                        {n.label}
+                      </Link>
+                    ))}
+                  </nav>
 
-                <div className="mt-6 border-t pt-4">
-                  {data?.user ? (
-                    <>
+                  <div className="mt-6 border-t pt-4">
+                    {data?.user ? (
+                      <>
+                        <Link
+                          href="/account"
+                          className="block rounded-md px-3 py-2 text-base font-medium hover:bg-[color:var(--color-muted)]"
+                        >
+                          Account
+                        </Link>
+
+                        <Link
+                          href="/cart"
+                          className="mt-2 flex items-center justify-between rounded-md px-3 py-2 text-base font-medium hover:bg-[color:var(--color-muted)]"
+                        >
+                          <span>Cart</span>
+                          {count > 0 ? (
+                            <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[color:var(--color-foreground)] px-2 text-xs font-semibold text-white">
+                              {count}
+                            </span>
+                          ) : null}
+                        </Link>
+                      </>
+                    ) : (
                       <Link
                         href="/account"
-                        className="block rounded-md px-3 py-2 text-base font-medium hover:bg-[color:var(--color-muted)]"
+                        className="flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium hover:bg-[color:var(--color-muted)]"
                       >
-                        Account
+                        <User className="h-4 w-4" />
+                        Login
                       </Link>
-                      <Link
-                        href="/cart"
-                        className="mt-2 flex items-center justify-between rounded-md px-3 py-2 text-base font-medium hover:bg-[color:var(--color-muted)]"
-                      >
-                        <span>Cart</span>
-                        {mounted && count > 0 ? (
-                          <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[color:var(--color-foreground)] px-2 text-xs font-semibold text-white">
-                            {count}
-                          </span>
-                        ) : null}
-                      </Link>
-                    </>
-                  ) : (
-                    <Link
-                      href="/account"
-                      className="flex items-center gap-2 rounded-md px-3 py-2 text-base font-medium hover:bg-[color:var(--color-muted)]"
-                    >
-                      <User className="h-4 w-4" />
-                      Login
-                    </Link>
-                  )}
-                </div>
-              </SheetContent>
-            </Sheet>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            ) : (
+              // ✅ SSR-safe placeholder (no Radix IDs -> no hydration mismatch)
+              <button
+                type="button"
+                aria-label="Open menu"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius)]"
+              >
+                <Menu className="h-5 w-5" />
+              </button>
+            )}
           </div>
 
           {/* DESKTOP: Normal left logo */}
@@ -157,7 +175,8 @@ export function Header() {
               const isHash = n.href.startsWith("#");
               const active = isHash
                 ? false
-                : pathname === n.href || (n.href !== "/" && pathname.startsWith(n.href));
+                : pathname === n.href ||
+                  (n.href !== "/" && pathname.startsWith(n.href));
 
               return (
                 <Link
@@ -182,9 +201,14 @@ export function Header() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="h-9 w-9 rounded-full p-0">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={data.user.image || ""} alt={data.user.name || "User"} />
+                    <AvatarImage
+                      src={data.user.image || ""}
+                      alt={data.user.name || "User"}
+                    />
                     <AvatarFallback>
-                      {(data.user.name || data.user.email || "U").slice(0, 1).toUpperCase()}
+                      {(data.user.name || data.user.email || "U")
+                        .slice(0, 1)
+                        .toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -208,7 +232,11 @@ export function Header() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Button asChild variant="outline" className="hidden sm:inline-flex rounded-full">
+            <Button
+              asChild
+              variant="outline"
+              className="hidden sm:inline-flex rounded-full"
+            >
               <Link href="/account" scroll={false}>
                 <User className="mr-2 h-4 w-4" />
                 Login
@@ -217,7 +245,11 @@ export function Header() {
           )}
 
           <Button asChild variant="ghost" className="relative h-9 w-9 p-0">
-            <Link href="/cart" aria-label="Cart" className="inline-flex items-center justify-center">
+            <Link
+              href="/cart"
+              aria-label="Cart"
+              className="inline-flex items-center justify-center"
+            >
               <ShoppingBag className="h-5 w-5" />
               {mounted && count > 0 ? (
                 <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-[color:var(--color-primary)] px-1 text-xs font-medium text-[color:var(--color-primary-foreground)]">
