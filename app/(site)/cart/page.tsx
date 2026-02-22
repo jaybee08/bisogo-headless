@@ -1025,7 +1025,7 @@ useEffect(() => {
 
             {!isAuthed ? (
               <>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-1 gap-2">
                   <Input
                     placeholder="City"
                     value={guest.city}
