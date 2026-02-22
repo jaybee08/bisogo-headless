@@ -1,19 +1,39 @@
+// app/api/checkout/create-order/route.ts
 import { NextResponse } from "next/server";
 import { createOrder } from "@/lib/woo/rest";
 import { auth } from "@/lib/auth/auth";
 
 export const dynamic = "force-dynamic";
 
+type IncomingShipping = {
+  method_id?: string;        // e.g. "flat_rate"
+  rate_id?: string;          // e.g. "flat_rate:2" (optional)
+  instance_id?: number;      // optional
+  title?: string;            // e.g. "Nationwide"
+  total_minor?: string;      // e.g. "8900" (minor units)
+  currency_minor_unit?: number; // e.g. 2
+  currency_symbol?: string;  // e.g. "₱"
+};
+
+function minorToMajorString(minor: any, minorUnit: any) {
+  const n = Number(minor ?? 0);
+  const unit = Number.isFinite(Number(minorUnit)) ? Number(minorUnit) : 2;
+  const denom = Math.pow(10, unit);
+  const v = Number.isFinite(n) ? n / denom : 0;
+  return v.toFixed(2); // Woo expects "string" major units (e.g. "89.00")
+}
+
 export async function POST(req: Request) {
   try {
     const session = await auth();
+
     const wooCustomerIdRaw = (session?.user as any)?.wooCustomerId;
     const wooCustomerId =
       typeof wooCustomerIdRaw === "number"
         ? wooCustomerIdRaw
         : typeof wooCustomerIdRaw === "string"
-          ? Number(wooCustomerIdRaw)
-          : null;
+        ? Number(wooCustomerIdRaw)
+        : null;
 
     const body = await req.json();
 
@@ -21,6 +41,13 @@ export async function POST(req: Request) {
     if (!items.length) {
       return NextResponse.json({ error: "Cart is empty" }, { status: 400 });
     }
+
+    // Coupons from cart page (optional)
+    const coupons: string[] = Array.isArray(body?.coupons) ? body.coupons : [];
+
+    // Shipping selection coming from cart page (optional)
+    const shipping: IncomingShipping | null =
+      body?.shipping && typeof body.shipping === "object" ? body.shipping : null;
 
     // If logged-in, prefer session identity. Otherwise allow guest-provided customer info.
     const customerFromBody = body?.customer || null;
@@ -31,9 +58,6 @@ export async function POST(req: Request) {
       quantity: Number(i.quantity || 1),
     }));
 
-    // Guest/customer details -> Woo billing/shipping
-    // If logged-in, you can still accept address/phone from body (optional),
-    // but email/name should come from session when available.
     const sessionName = session?.user?.name || "";
     const sessionEmail = session?.user?.email || "";
 
@@ -50,7 +74,9 @@ export async function POST(req: Request) {
             postcode: customerFromBody?.postcode || "",
             country: customerFromBody?.country || "PH",
           }
-        : (customerFromBody && typeof customerFromBody === "object" ? customerFromBody : null);
+        : customerFromBody && typeof customerFromBody === "object"
+        ? customerFromBody
+        : null;
 
     const billing =
       customer
@@ -68,7 +94,7 @@ export async function POST(req: Request) {
           }
         : undefined;
 
-    const shipping = billing
+    const shippingAddress = billing
       ? {
           first_name: billing.first_name,
           last_name: billing.last_name,
@@ -81,14 +107,39 @@ export async function POST(req: Request) {
         }
       : undefined;
 
+    // ✅ IMPORTANT: add shipping_lines so Woo checkout shows the shipping fee
+    const shipping_lines =
+      shipping?.method_id && shipping?.total_minor != null
+        ? [
+            {
+              method_id: String(shipping.method_id), // e.g. "flat_rate"
+              method_title: String(shipping.title || shipping.rate_id || "Shipping"),
+              total: minorToMajorString(shipping.total_minor, shipping.currency_minor_unit),
+            },
+          ]
+        : [];
+
+    // ✅ Coupons (optional) so Woo calculates discounts properly (if your coupons are valid)
+    const coupon_lines = coupons
+      .map((code) => String(code || "").trim())
+      .filter(Boolean)
+      .map((code) => ({ code }));
+
     const orderPayload: any = {
       line_items,
+      ...(billing ? { billing } : {}),
+      ...(shippingAddress ? { shipping: shippingAddress } : {}),
+      ...(shipping_lines.length ? { shipping_lines } : {}),
+      ...(coupon_lines.length ? { coupon_lines } : {}),
+
+      // helpful metadata for debugging
       meta_data: [
         { key: "bisogo_headless", value: "1" },
         { key: "bisogo_source", value: "nextjs" },
+        ...(shipping?.rate_id ? [{ key: "bisogo_rate_id", value: String(shipping.rate_id) }] : []),
+        ...(shipping?.instance_id != null ? [{ key: "bisogo_instance_id", value: String(shipping.instance_id) }] : []),
       ],
-      ...(billing ? { billing } : {}),
-      ...(shipping ? { shipping } : {}),
+
       ...(Number.isFinite(wooCustomerId as any) && (wooCustomerId as number) > 0
         ? { customer_id: wooCustomerId }
         : {}),
@@ -102,7 +153,11 @@ export async function POST(req: Request) {
       (order as any).checkoutUrl ||
       `/order/${encodeURIComponent(order.order_key)}?order=${encodeURIComponent(String(order.id))}`;
 
-    return NextResponse.json({ redirectUrl, orderId: order.id, orderKey: order.order_key });
+    return NextResponse.json({
+      redirectUrl,
+      orderId: order.id,
+      orderKey: order.order_key,
+    });
   } catch (e: any) {
     return NextResponse.json(
       { error: e?.message || "Failed to create order" },
