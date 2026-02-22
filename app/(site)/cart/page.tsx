@@ -777,7 +777,8 @@ export default function CartPage() {
       const out = (dataJson || {}) as CheckoutResponse;
       if (!out.redirectUrl) throw new Error("Missing redirectUrl from server.");
 
-      window.location.href = out.redirectUrl;
+      // window.location.href = out.redirectUrl;
+      window.location.href = `/pay?u=${encodeURIComponent(out.redirectUrl)}`;
     } catch (e: any) {
       setError(e?.message || "Checkout failed");
       setLoading(false);
