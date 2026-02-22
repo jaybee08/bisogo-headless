@@ -83,8 +83,8 @@ type StoreCartItem = {
 
 const FREE_SHIPPING_THRESHOLD_PHP = 3000; // <- change this
 const PH_STATES: Array<{ code: string; name: string }> = [
-  { code: "NCR", name: "Metro Manila (NCR)" },
-  { code: "CAR", name: "Cordillera Administrative Region (CAR)" },
+  { code: "NCR", name: "Metro Manila" },
+  { code: "CAR", name: "Cordillera Region" },
   { code: "ABR", name: "Abra" },
   { code: "AGN", name: "Agusan del Norte" },
   { code: "AGS", name: "Agusan del Sur" },
@@ -1038,7 +1038,7 @@ useEffect(() => {
                       onValueChange={(v) => set("state", v)}
                       disabled={ratesLoading}
                     >
-                      <SelectTrigger className="h-10">
+                      <SelectTrigger className="h-10 text-base sm:text-sm">
                         <SelectValue placeholder="Select province" />
                       </SelectTrigger>
                       <SelectContent className="max-h-[280px]">
