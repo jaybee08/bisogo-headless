@@ -99,9 +99,7 @@ export async function generateMetadata({
 
   const isRest = Boolean(res?.__rest);
   const name = product.name;
-  const shortDescription = isRest
-    ? product.short_description
-    : product.shortDescription;
+  const shortDescription = isRest ? product.short_description : product.shortDescription;
 
   const images: string[] = isRest
     ? (product.images || []).map((i: any) => i?.src).filter(Boolean)
@@ -139,9 +137,7 @@ export default async function ProductDetail({
   const isRest = Boolean(res?.__rest);
 
   const name = product.name;
-  const shortDescription = isRest
-    ? product.short_description
-    : product.shortDescription;
+  const shortDescription = isRest ? product.short_description : product.shortDescription;
   const description = isRest ? product.description : product.description;
 
   // --- images
@@ -174,33 +170,22 @@ export default async function ProductDetail({
   const displayPrice = pricing.salePrice;
 
   // --- stock
-  const stockStatusRaw =
-    (isRest ? product.stock_status : product.stockStatus) || "";
-  const stock = String(stockStatusRaw).toLowerCase().includes("out")
-    ? "OutOfStock"
-    : "InStock";
+  const stockStatusRaw = (isRest ? product.stock_status : product.stockStatus) || "";
+  const stock = String(stockStatusRaw).toLowerCase().includes("out") ? "OutOfStock" : "InStock";
 
   // --- inventory / low-stock messaging (REST best-effort)
-  const stockQty = isRest
-    ? Number(product?.stock_quantity ?? product?.stockQuantity ?? NaN)
-    : NaN;
-  const lowStockThreshold = isRest
-    ? Number(product?.low_stock_amount ?? product?.lowStockAmount ?? NaN)
-    : NaN;
+  const stockQty = isRest ? Number(product?.stock_quantity ?? product?.stockQuantity ?? NaN) : NaN;
+  const lowStockThreshold = isRest ? Number(product?.low_stock_amount ?? product?.lowStockAmount ?? NaN) : NaN;
 
   const showOnlyLeft =
     stock === "InStock" &&
     Number.isFinite(stockQty) &&
     stockQty > 0 &&
-    (Number.isFinite(lowStockThreshold)
-      ? stockQty <= lowStockThreshold
-      : stockQty <= 5);
+    (Number.isFinite(lowStockThreshold) ? stockQty <= lowStockThreshold : stockQty <= 5);
 
   // ✅ sold individually + max qty (REST reliable; GraphQL best-effort)
   const soldIndividually = Boolean(
-    isRest
-      ? product?.sold_individually
-      : product?.soldIndividually ?? product?.sold_individually
+    isRest ? product?.sold_individually : product?.soldIndividually ?? product?.sold_individually
   );
 
   const maxPurchaseQty =
@@ -209,6 +194,14 @@ export default async function ProductDetail({
       : soldIndividually
         ? 1
         : undefined;
+
+  // ✅ NEW: backorders support (REST reliable; GraphQL best-effort)
+  // Woo REST typically: "no" | "notify" | "yes"
+  const backorders = (isRest ? product?.backorders : product?.backorders) as "no" | "notify" | "yes" | undefined;
+
+  // ✅ Pass stock to ATC so it can disable when stock is fully in cart (only when backorders = no)
+  const passStockQty = Number.isFinite(stockQty) ? stockQty : null;
+  const passStockStatus = isRest ? product?.stock_status : product?.stockStatus;
 
   // --- productId mapping
   const productId = (() => {
@@ -279,22 +272,10 @@ export default async function ProductDetail({
   }
 
   const faqItems = [
-    {
-      q: "How long is delivery in the Philippines?",
-      a: "Usually 2–5 business days depending on your location.",
-    },
-    {
-      q: "Do you accept Cash on Delivery (COD)?",
-      a: "Yes, COD is available in supported areas.",
-    },
-    {
-      q: "Can I return or exchange?",
-      a: "Yes. If there’s an issue with your item, contact us within 7 days of delivery.",
-    },
-    {
-      q: "How do I choose the right size?",
-      a: "Check the Size options above. If unsure, message us and we’ll help.",
-    },
+    { q: "How long is delivery in the Philippines?", a: "Usually 2–5 business days depending on your location." },
+    { q: "Do you accept Cash on Delivery (COD)?", a: "Yes, COD is available in supported areas." },
+    { q: "Can I return or exchange?", a: "Yes. If there’s an issue with your item, contact us within 7 days of delivery." },
+    { q: "How do I choose the right size?", a: "Check the Size options above. If unsure, message us and we’ll help." },
   ];
 
   const priceLabel = `₱${displayPrice.toFixed(2)}`;
@@ -345,9 +326,7 @@ export default async function ProductDetail({
               <span
                 className={[
                   "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium",
-                  stock === "InStock"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                    : "border-rose-200 bg-rose-50 text-rose-800",
+                  stock === "InStock" ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-rose-200 bg-rose-50 text-rose-800",
                 ].join(" ")}
               >
                 {stock === "InStock" ? "In stock" : "Out of stock"}
@@ -396,6 +375,11 @@ export default async function ProductDetail({
                 // ✅ keep pill + hard cap qty
                 soldIndividually,
                 maxPurchaseQty,
+
+                // ✅ NEW: let AddToCart decide disable/cap using stock + backorders
+                stockQty: passStockQty,
+                stockStatus: passStockStatus,
+                backorders: backorders || "no",
               }}
             />
           </div>
@@ -405,10 +389,7 @@ export default async function ProductDetail({
           {description ? (
             <div className="pt-2">
               <div className="text-sm font-semibold">Details</div>
-              <div
-                className="prose prose-slate mt-3 max-w-none"
-                dangerouslySetInnerHTML={{ __html: description }}
-              />
+              <div className="prose prose-slate mt-3 max-w-none" dangerouslySetInnerHTML={{ __html: description }} />
             </div>
           ) : null}
         </div>
