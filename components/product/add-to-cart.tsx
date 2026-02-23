@@ -12,6 +12,11 @@ type Variation = {
   price: number;
   stockStatus?: string;
   attributes: Record<string, string>;
+
+  // optional if you ever add these later
+  stockQty?: number | null;
+  maxPurchaseQty?: number | null;
+  soldIndividually?: boolean;
 };
 
 type ProductForCart = {
@@ -24,47 +29,133 @@ type ProductForCart = {
   attributes: { name: string; options: string[] }[];
   variations: Variation[];
 
-  // ✅ NEW
+  // ✅ from backend (simple product)
   soldIndividually?: boolean; // Woo: sold_individually
   maxPurchaseQty?: number; // Woo: max_purchase_quantity (often 1 if sold individually)
+  stockQty?: number | null; // Woo: stock_quantity (if managed)
 };
+
+function attrsEqual(a?: Record<string, string>, b?: Record<string, string>) {
+  const aKeys = a ? Object.keys(a) : [];
+  const bKeys = b ? Object.keys(b) : [];
+  if (aKeys.length !== bKeys.length) return false;
+  for (const k of aKeys) {
+    if ((a as any)[k] !== (b as any)[k]) return false;
+  }
+  return true;
+}
 
 export function AddToCart({ product }: { product: ProductForCart }) {
   const add = useCart((s) => s.addItem);
+  const cartItems = useCart((s) => s.items);
   const showToast = useCartUI((s) => s.showToast);
-
-  const soldIndividually = !!product.soldIndividually;
-  const maxQty = soldIndividually ? 1 : Math.max(1, Number(product.maxPurchaseQty ?? 9999));
 
   const [qty, setQty] = useState(1);
   const [selected, setSelected] = useState<Record<string, string>>({});
 
-  // ✅ keep qty valid if product is sold individually or max changes
-  useEffect(() => {
-    setQty((q) => Math.min(Math.max(1, q), maxQty));
-  }, [maxQty]);
-
-  const resolved = useMemo(() => {
-    if (!product.variations.length) {
-      return { price: product.basePrice, variationId: undefined as number | undefined };
-    }
-
-    const match = product.variations.find((v) =>
-      Object.entries(v.attributes).every(([k, v2]) => selected[k] === v2)
-    );
-
-    return { price: match?.price ?? product.basePrice, variationId: match?.id };
-  }, [product.variations, product.basePrice, selected]);
-
-  const canAdd = useMemo(() => {
+  const canChooseAll = useMemo(() => {
     if (!product.attributes.length) return true;
     return product.attributes.every((a) => selected[a.name]);
   }, [product.attributes, selected]);
 
-  const priceLabel = `₱${resolved.price.toFixed(2)}`;
+  const resolved = useMemo(() => {
+    // simple product
+    if (!product.variations.length) {
+      return {
+        variationId: undefined as number | undefined,
+        price: product.basePrice,
+        // caps (simple)
+        soldIndividually: !!product.soldIndividually,
+        maxPurchaseQty: product.maxPurchaseQty ?? undefined,
+        stockQty: product.stockQty ?? undefined,
+        attributes: Object.keys(selected).length ? selected : undefined,
+      };
+    }
+
+    // variable product: only "resolved" when all options selected
+    const match = product.variations.find((v) =>
+      Object.entries(v.attributes).every(([k, v2]) => selected[k] === v2)
+    );
+
+    return {
+      variationId: match?.id,
+      price: match?.price ?? product.basePrice,
+      // caps (variation overrides product if present)
+      soldIndividually: !!(match?.soldIndividually ?? product.soldIndividually),
+      maxPurchaseQty:
+        (match?.maxPurchaseQty ?? product.maxPurchaseQty) ?? undefined,
+      stockQty: (match?.stockQty ?? product.stockQty) ?? undefined,
+      attributes: Object.keys(selected).length ? selected : undefined,
+    };
+  }, [product.variations, product.basePrice, product.soldIndividually, product.maxPurchaseQty, product.stockQty, selected]);
+
+  // qty already in cart for this exact selection
+  const inCartQty = useMemo(() => {
+    const vId = resolved.variationId ?? 0;
+    const attrs = resolved.attributes;
+    return cartItems
+      .filter(
+        (i) =>
+          i.productId === product.productId &&
+          (i.variationId ?? 0) === vId &&
+          attrsEqual(i.attributes, attrs)
+      )
+      .reduce((sum, i) => sum + i.quantity, 0);
+  }, [cartItems, product.productId, resolved.variationId, resolved.attributes]);
+
+  // compute max allowed based on sold individually / max purchase / stock
+  const maxAllowed = useMemo(() => {
+    const soldInd = !!resolved.soldIndividually;
+    const maxPurchase =
+      soldInd ? 1 : Math.max(1, Number(resolved.maxPurchaseQty ?? 9999));
+
+    const stockQty = Number(resolved.stockQty);
+    const stockCap =
+      Number.isFinite(stockQty) && stockQty > 0 ? stockQty : 9999;
+
+    return Math.max(1, Math.min(maxPurchase, stockCap));
+  }, [resolved.soldIndividually, resolved.maxPurchaseQty, resolved.stockQty]);
+
+  // remaining we can still add (respecting what’s already in cart)
+  const remaining = useMemo(() => {
+    return Math.max(0, maxAllowed - inCartQty);
+  }, [maxAllowed, inCartQty]);
+
+  // Keep qty valid whenever selection/max changes
+  useEffect(() => {
+    setQty((q) => {
+      const next = Math.max(1, q);
+      // if remaining is 0, keep qty at 1 but button will be disabled
+      return Math.min(next, Math.max(1, remaining || 1));
+    });
+  }, [remaining]);
 
   const canDec = qty > 1;
-  const canInc = qty < maxQty;
+  const canInc = qty + 1 <= Math.max(1, remaining || 1);
+
+  // disable add if:
+  // - options not selected OR
+  // - selection resolved but remaining is 0
+  const canAddNow = canChooseAll && !!(resolved.variationId || !product.variations.length) && remaining > 0;
+
+  const priceLabel = `₱${resolved.price.toFixed(2)}`;
+
+  // nice UX message
+  const limitMessage = useMemo(() => {
+    if (!canChooseAll) return null;
+
+    if (remaining <= 0) {
+      if (resolved.soldIndividually) return "Limited to 1 per order — already in your cart.";
+      if (Number.isFinite(Number(resolved.stockQty)) && Number(resolved.stockQty) > 0)
+        return "Max available quantity already in your cart.";
+      return "You can’t add more of this item right now.";
+    }
+
+    if (resolved.soldIndividually) return "Limited to 1 per order.";
+    if (Number.isFinite(Number(resolved.stockQty)) && Number(resolved.stockQty) > 0 && Number(resolved.stockQty) <= 5)
+      return `Only ${Number(resolved.stockQty)} left.`;
+    return null;
+  }, [canChooseAll, remaining, resolved.soldIndividually, resolved.stockQty]);
 
   return (
     <div id="pdp-atc" className="rounded-[var(--radius)] border border-[color:var(--color-border)] p-5">
@@ -107,7 +198,7 @@ export function AddToCart({ product }: { product: ProductForCart }) {
               type="button"
               className="h-10 w-10 hover:bg-[color:var(--color-muted)] disabled:opacity-40 disabled:hover:bg-transparent"
               onClick={() => setQty((q) => Math.max(1, q - 1))}
-              disabled={!canDec}
+              disabled={!canDec || !canChooseAll}
               aria-label="Decrease quantity"
             >
               -
@@ -116,18 +207,18 @@ export function AddToCart({ product }: { product: ProductForCart }) {
             <button
               type="button"
               className="h-10 w-10 hover:bg-[color:var(--color-muted)] disabled:opacity-40 disabled:hover:bg-transparent"
-              onClick={() => setQty((q) => Math.min(maxQty, q + 1))}
-              disabled={!canInc}
+              onClick={() => setQty((q) => Math.min(Math.max(1, remaining || 1), q + 1))}
+              disabled={!canInc || !canChooseAll || remaining <= 0}
               aria-label="Increase quantity"
             >
               +
             </button>
           </div>
 
-          {/* ✅ Limited pill (matches your screenshot style) */}
-          {soldIndividually ? (
+          {/* Message pill */}
+          {limitMessage ? (
             <span className="inline-flex items-center rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-3 py-1 text-xs text-[color:var(--color-muted-foreground)]">
-              Limited to 1 per order.
+              {limitMessage}
             </span>
           ) : null}
 
@@ -142,6 +233,10 @@ export function AddToCart({ product }: { product: ProductForCart }) {
           data-atc-primary="1"
           className="h-11 w-full whitespace-nowrap sm:w-auto sm:flex-1"
           onClick={() => {
+            if (!canAddNow) return;
+
+            const addQty = Math.min(qty, remaining);
+
             const cartItem = {
               productId: product.productId,
               variationId: resolved.variationId,
@@ -150,8 +245,8 @@ export function AddToCart({ product }: { product: ProductForCart }) {
               image: product.image,
               price: resolved.price,
               currency: product.currency,
-              quantity: Math.min(qty, maxQty),
-              attributes: Object.keys(selected).length ? selected : undefined,
+              quantity: addQty,
+              attributes: resolved.attributes,
             };
 
             add(cartItem);
@@ -168,9 +263,9 @@ export function AddToCart({ product }: { product: ProductForCart }) {
               ttlMs: 4500,
             });
           }}
-          disabled={!canAdd}
+          disabled={!canAddNow}
         >
-          {canAdd ? "Add to cart" : "Select options"}
+          {!canChooseAll ? "Select options" : remaining <= 0 ? "Added" : "Add to cart"}
         </Button>
 
         {/* Desktop price */}
