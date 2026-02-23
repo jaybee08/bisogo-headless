@@ -41,7 +41,8 @@ export default async function Shop({
   const page = Math.max(1, Number(sp.page || "1") || 1);
   const sort = sp.sort || "latest";
 
-  const wooGql = await isWooGraphQLAvailable();
+  // kept (even if not used directly)
+  await isWooGraphQLAvailable();
 
   const res = await fetchProductsIndex({
     first: 12,
@@ -54,6 +55,7 @@ export default async function Shop({
   const categories = res?.__rest
     ? (res.categories ?? [])
     : (res?.productCategories?.nodes ?? []);
+
   const products = res?.__rest ? res.products ?? [] : res?.products?.nodes ?? [];
   const pageInfo = res?.products?.pageInfo;
 
@@ -62,14 +64,38 @@ export default async function Shop({
       return {
         slug: p.slug,
         name: p.name,
+
+        // primary price (you already had this)
         price: p.price,
+
+        // ✅ sale fields (REST)
+        regularPrice: p.regular_price,
+        salePrice: p.sale_price,
+        onSale: Boolean(p.on_sale),
+
         image: { url: p.images?.[0]?.src || null, alt: p.images?.[0]?.alt || null },
       };
     }
+
+    // GraphQL (best effort — depends on your Woo GraphQL schema)
+    // Many schemas expose:
+    // - onSale
+    // - regularPrice / salePrice (sometimes raw string with currency)
+    // - price (current)
+    const gqlOnSale = Boolean(p.onSale ?? p.on_sale);
+    const gqlRegular = p.regularPrice ?? p.regular_price ?? null;
+    const gqlSale = p.salePrice ?? p.sale_price ?? null;
+
     return {
       slug: p.slug,
       name: p.name,
       price: p.price,
+
+      // ✅ sale fields (GraphQL best-effort)
+      regularPrice: gqlRegular,
+      salePrice: gqlSale,
+      onSale: gqlOnSale,
+
       image: { url: p.image?.sourceUrl || null, alt: p.image?.altText || null },
     };
   });
@@ -132,7 +158,17 @@ export default async function Shop({
           {items.length ? (
             <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
               {items.map((p: any) => (
-                <ProductCard key={p.slug} slug={p.slug} name={p.name} price={p.price} image={p.image} />
+                <ProductCard
+                  key={p.slug}
+                  slug={p.slug}
+                  name={p.name}
+                  price={p.price}
+                  image={p.image}
+                  // ✅ new props
+                  regularPrice={p.regularPrice}
+                  salePrice={p.salePrice}
+                  onSale={p.onSale}
+                />
               ))}
             </div>
           ) : (
@@ -177,9 +213,9 @@ export default async function Shop({
           <div className="rounded-[var(--radius)] border border-[color:var(--color-border)] p-4">
             <div className="text-sm font-semibold">Get updates</div>
             <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
-               New guides + curated drops, once a week.
+              New guides + curated drops, once a week.
             </p>
-             <NewsletterForm />
+            <NewsletterForm />
           </div>
         </aside>
       </div>

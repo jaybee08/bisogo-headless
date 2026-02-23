@@ -25,9 +25,51 @@ function decodeSlug(raw: string) {
   }
 }
 
-function toNumberOrNull(v: any) {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+/**
+ * ✅ Sale pricing helper (REST-first; best-effort for GraphQL)
+ */
+function getSalePricing(product: any, isRest: boolean) {
+  if (isRest) {
+    const onSale = Boolean(product?.on_sale);
+    const regular = normalizePrice(product?.regular_price ?? product?.price).raw;
+    const sale = normalizePrice(product?.sale_price ?? product?.price).raw;
+
+    const hasRealSale =
+      onSale &&
+      Number.isFinite(regular) &&
+      Number.isFinite(sale) &&
+      sale > 0 &&
+      sale < regular;
+
+    return {
+      onSale: hasRealSale,
+      regularPrice: regular,
+      salePrice: hasRealSale ? sale : regular,
+    };
+  }
+
+  const rawPrice = normalizePrice(product?.price).raw;
+
+  const regularMaybe = normalizePrice(
+    product?.regularPrice ?? product?.regular_price ?? product?.price
+  ).raw;
+  const saleMaybe = normalizePrice(
+    product?.salePrice ?? product?.sale_price ?? product?.price
+  ).raw;
+
+  const hasRealSale =
+    Number.isFinite(regularMaybe) &&
+    Number.isFinite(saleMaybe) &&
+    saleMaybe > 0 &&
+    saleMaybe < regularMaybe &&
+    (String(product?.onSale).toLowerCase() === "true" ||
+      String(product?.on_sale).toLowerCase() === "true");
+
+  return {
+    onSale: hasRealSale,
+    regularPrice: hasRealSale ? regularMaybe : rawPrice,
+    salePrice: hasRealSale ? saleMaybe : rawPrice,
+  };
 }
 
 export async function generateMetadata({
@@ -57,7 +99,9 @@ export async function generateMetadata({
 
   const isRest = Boolean(res?.__rest);
   const name = product.name;
-  const shortDescription = isRest ? product.short_description : product.shortDescription;
+  const shortDescription = isRest
+    ? product.short_description
+    : product.shortDescription;
 
   const images: string[] = isRest
     ? (product.images || []).map((i: any) => i?.src).filter(Boolean)
@@ -95,7 +139,9 @@ export default async function ProductDetail({
   const isRest = Boolean(res?.__rest);
 
   const name = product.name;
-  const shortDescription = isRest ? product.short_description : product.shortDescription;
+  const shortDescription = isRest
+    ? product.short_description
+    : product.shortDescription;
   const description = isRest ? product.description : product.description;
 
   // --- images
@@ -122,50 +168,47 @@ export default async function ProductDetail({
 
   const mainImg = images?.[0]?.url ?? null;
 
-  // --- price + stock
-  const basePrice = normalizePrice(isRest ? product.price : product.price).raw;
+  // --- pricing (✅ sale support)
   const currency = "PHP";
+  const pricing = getSalePricing(product, isRest);
+  const displayPrice = pricing.salePrice;
 
-  // --- stock status (for JSON-LD + basic UI)
-  const stock = (() => {
-    const status = (isRest ? product.stock_status : product.stockStatus) || "";
-    return String(status).toLowerCase().includes("out") ? "OutOfStock" : "InStock";
-  })() as "InStock" | "OutOfStock";
+  // --- stock
+  const stockStatusRaw =
+    (isRest ? product.stock_status : product.stockStatus) || "";
+  const stock = String(stockStatusRaw).toLowerCase().includes("out")
+    ? "OutOfStock"
+    : "InStock";
 
-  // ✅ NEW: quantity + low stock threshold for badge messaging
-  // Woo REST:
-  // - stock_quantity: number|null
-  // - low_stock_amount: number|null
+  // --- inventory / low-stock messaging (REST best-effort)
   const stockQty = isRest
-    ? toNumberOrNull((product as any).stock_quantity)
-    : toNumberOrNull((product as any).stockQuantity);
+    ? Number(product?.stock_quantity ?? product?.stockQuantity ?? NaN)
+    : NaN;
+  const lowStockThreshold = isRest
+    ? Number(product?.low_stock_amount ?? product?.lowStockAmount ?? NaN)
+    : NaN;
 
-  const lowStockAmount = isRest
-    ? toNumberOrNull((product as any).low_stock_amount)
-    : toNumberOrNull((product as any).lowStockAmount);
-
-  // If product has no per-product low stock threshold, default to 5 for messaging.
-  const lowThreshold = lowStockAmount && lowStockAmount > 0 ? lowStockAmount : 5;
-
-  const isLowStock =
+  const showOnlyLeft =
     stock === "InStock" &&
-    stockQty !== null &&
+    Number.isFinite(stockQty) &&
     stockQty > 0 &&
-    stockQty <= lowThreshold;
+    (Number.isFinite(lowStockThreshold)
+      ? stockQty <= lowStockThreshold
+      : stockQty <= 5);
 
-  const stockBadgeLabel =
-    stock === "OutOfStock"
-      ? "Out of stock"
-      : isLowStock && stockQty !== null
-      ? `Only ${stockQty} left`
-      : "In stock";
+  // ✅ sold individually + max qty (REST reliable; GraphQL best-effort)
+  const soldIndividually = Boolean(
+    isRest
+      ? product?.sold_individually
+      : product?.soldIndividually ?? product?.sold_individually
+  );
 
-  const stockBadgeClass =
-    stock === "OutOfStock"
-      ? "border-rose-200 bg-rose-50 text-rose-800"
-      : isLowStock
-      ? "border-amber-200 bg-amber-50 text-amber-900"
-      : "border-emerald-200 bg-emerald-50 text-emerald-800";
+  const maxPurchaseQty =
+    isRest && Number.isFinite(Number(product?.max_purchase_quantity))
+      ? Number(product?.max_purchase_quantity)
+      : soldIndividually
+        ? 1
+        : undefined;
 
   // --- productId mapping
   const productId = (() => {
@@ -201,16 +244,16 @@ export default async function ProductDetail({
   // --- USPs from REST meta (_product_usps)
   const usps = Array.isArray((product as any).usps) ? (product as any).usps : [];
 
-  // --- JSON-LD
+  // --- JSON-LD (use current selling price)
   const ld = productJsonLd({
     url: canonicalFor(`/product/${slug}`),
     name,
     description: stripHtml(shortDescription || "").slice(0, 300),
     image: images.map((i: any) => i.url),
     sku: (isRest ? product.sku : product.sku) || undefined,
-    price: basePrice,
+    price: displayPrice,
     currency,
-    availability: stock,
+    availability: stock as any,
   });
 
   // --- YMAL (REST only for now)
@@ -254,14 +297,7 @@ export default async function ProductDetail({
     },
   ];
 
-
-  // ✅ NEW: sold individually + max purchase qty (REST)
-const soldIndividually = Boolean((product as any).sold_individually);
-const maxPurchaseQtyRaw = (product as any).max_purchase_quantity;
-const maxPurchaseQty =
-  typeof maxPurchaseQtyRaw === "number"
-    ? maxPurchaseQtyRaw
-    : Number(maxPurchaseQtyRaw || 0) || undefined;
+  const priceLabel = `₱${displayPrice.toFixed(2)}`;
 
   return (
     <div className="container py-10">
@@ -273,12 +309,10 @@ const maxPurchaseQty =
         </Link>
       </div>
 
-      {/* HERO ROW: image + primary buy box */}
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Gallery */}
         <div className="space-y-3 min-w-0">
           <div className="w-full max-w-full overflow-x-clip sm:overflow-visible">
-            {/* clamp only on mobile, normal on desktop */}
             <div className="mx-auto w-full max-w-[92vw] sm:mx-0 sm:max-w-none">
               <ProductGallery images={images} productName={name} />
             </div>
@@ -289,18 +323,41 @@ const maxPurchaseQty =
         <div className="space-y-6">
           <div className="space-y-2">
             <h1 className="text-3xl font-semibold tracking-tight">{name}</h1>
-            <div className="text-lg font-medium">₱{basePrice.toFixed(2)}</div>
+
+            {/* ✅ price row with compare-at + badge */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="text-lg font-medium tabular-nums">{priceLabel}</div>
+
+              {pricing.onSale ? (
+                <>
+                  <div className="text-sm tabular-nums text-[color:var(--color-muted-foreground)] line-through">
+                    ₱{pricing.regularPrice.toFixed(2)}
+                  </div>
+                  <span className="inline-flex items-center rounded-full border border-rose-200 bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700">
+                    Sale
+                  </span>
+                </>
+              ) : null}
+            </div>
 
             {/* CRO microcopy + trust badges */}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span
                 className={[
                   "inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-medium",
-                  stockBadgeClass,
+                  stock === "InStock"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                    : "border-rose-200 bg-rose-50 text-rose-800",
                 ].join(" ")}
               >
-                {stockBadgeLabel}
+                {stock === "InStock" ? "In stock" : "Out of stock"}
               </span>
+
+              {showOnlyLeft ? (
+                <span className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900">
+                  Only {stockQty} left
+                </span>
+              ) : null}
 
               <span className="inline-flex items-center rounded-full border border-[color:var(--color-border)] bg-[color:var(--color-muted)] px-2.5 py-1 text-xs text-[color:var(--color-muted-foreground)]">
                 COD available (selected areas)
@@ -323,30 +380,28 @@ const maxPurchaseQty =
             ) : null}
           </div>
 
-          {/* Add to cart (target for StickyATC) */}
-          <div id="pdp-atc">      
+          {/* Add to cart */}
+          <div id="pdp-atc">
             <AddToCart
               product={{
                 productId,
                 slug,
                 name,
                 image: mainImg,
-                basePrice,
+                basePrice: displayPrice,
                 currency,
                 attributes,
                 variations,
 
-                // ✅ pass through
+                // ✅ keep pill + hard cap qty
                 soldIndividually,
                 maxPurchaseQty,
               }}
             />
           </div>
 
-          {/* USPs */}
           {usps.length ? <UspsCarousel usps={usps} /> : null}
 
-          {/* Details */}
           {description ? (
             <div className="pt-2">
               <div className="text-sm font-semibold">Details</div>
@@ -359,7 +414,6 @@ const maxPurchaseQty =
         </div>
       </div>
 
-      {/* BELOW THE HERO: full-width CRO blocks */}
       <section className="mt-12 space-y-10">
         <PdpFaq items={faqItems} />
 
@@ -370,6 +424,9 @@ const maxPurchaseQty =
               slug: p.slug,
               name: p.name,
               price: p.price,
+              regular_price: p.regular_price,
+              sale_price: p.sale_price,
+              on_sale: p.on_sale,
               images: (p.images || []).map((i: any) => ({
                 src: i?.src,
                 alt: i?.alt,
@@ -379,12 +436,7 @@ const maxPurchaseQty =
         ) : null}
       </section>
 
-      <StickyAtc
-        name={name}
-        priceLabel={`₱${basePrice.toFixed(2)}`}
-        image={mainImg}
-        targetId="pdp-atc"
-      />
+      <StickyAtc name={name} priceLabel={priceLabel} image={mainImg} targetId="pdp-atc" />
     </div>
   );
 }
