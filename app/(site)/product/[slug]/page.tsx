@@ -33,10 +33,7 @@ export async function generateMetadata({
   const { slug: rawSlug } = await params;
   const slug = decodeSlug(rawSlug);
   if (!slug) {
-    return {
-      title: "Product not found",
-      robots: { index: false, follow: false },
-    };
+    return { title: "Product not found", robots: { index: false, follow: false } };
   }
 
   const res = await fetchProductBySlug(slug);
@@ -52,16 +49,11 @@ export async function generateMetadata({
 
   const isRest = Boolean(res?.__rest);
   const name = product.name;
-  const shortDescription = isRest
-    ? product.short_description
-    : product.shortDescription;
+  const shortDescription = isRest ? product.short_description : product.shortDescription;
 
   const images: string[] = isRest
     ? (product.images || []).map((i: any) => i?.src).filter(Boolean)
-    : [
-        product.image?.sourceUrl,
-        ...(product.galleryImages?.nodes || []).map((n: any) => n?.sourceUrl),
-      ].filter(Boolean);
+    : [product.image?.sourceUrl, ...(product.galleryImages?.nodes || []).map((n: any) => n?.sourceUrl)].filter(Boolean);
 
   return {
     title: `${name} | Bisogo`,
@@ -92,27 +84,17 @@ export default async function ProductDetail({
   const isRest = Boolean(res?.__rest);
 
   const name = product.name;
-  const shortDescription = isRest
-    ? product.short_description
-    : product.shortDescription;
+  const shortDescription = isRest ? product.short_description : product.shortDescription;
   const description = isRest ? product.description : product.description;
 
   // --- images
   const images = isRest
     ? (product.images || [])
-        .map((i: any) => ({
-          url: i?.src,
-          alt: i?.alt || name,
-        }))
+        .map((i: any) => ({ url: i?.src, alt: i?.alt || name }))
         .filter((x: any) => Boolean(x.url))
     : [
         ...(product.image?.sourceUrl
-          ? [
-              {
-                url: product.image.sourceUrl,
-                alt: product.image.altText || name,
-              },
-            ]
+          ? [{ url: product.image.sourceUrl, alt: product.image.altText || name }]
           : []),
         ...((product.galleryImages?.nodes || [])
           .map((n: any) => ({ url: n?.sourceUrl, alt: n?.altText || name }))
@@ -125,12 +107,23 @@ export default async function ProductDetail({
   const basePrice = normalizePrice(isRest ? product.price : product.price).raw;
   const currency = "PHP";
 
+  const stockStatusRaw = (isRest ? product.stock_status : product.stockStatus) || "";
   const stock = (() => {
-    const status = (isRest ? product.stock_status : product.stockStatus) || "";
-    return String(status).toLowerCase().includes("out")
-      ? "OutOfStock"
-      : "InStock";
+    return String(stockStatusRaw).toLowerCase().includes("out") ? "OutOfStock" : "InStock";
   })() as "InStock" | "OutOfStock";
+
+  // ✅ best-effort stock fields (REST has these)
+  const manageStock =
+    isRest ? Boolean((product as any).manage_stock) : Boolean((product as any).manageStock);
+  const stockQuantity =
+    isRest ? (typeof (product as any).stock_quantity === "number" ? (product as any).stock_quantity : null)
+           : (typeof (product as any).stockQuantity === "number" ? (product as any).stockQuantity : null);
+
+  const backorders =
+    isRest ? String((product as any).backorders || "no") : String((product as any).backorders || "no");
+
+  const soldIndividually =
+    isRest ? Boolean((product as any).sold_individually) : Boolean((product as any).soldIndividually);
 
   // --- productId mapping
   const productId = (() => {
@@ -139,7 +132,7 @@ export default async function ProductDetail({
     return 0;
   })();
 
-  // --- attributes + variations mapping (best effort)
+  // --- attributes + variations mapping
   const attributes = isRest
     ? (product.attributes || [])
         .filter((a: any) => Array.isArray(a.options) && a.options.length)
@@ -148,6 +141,7 @@ export default async function ProductDetail({
         .filter((a: any) => Array.isArray(a.options) && a.options.length)
         .map((a: any) => ({ name: a.name, options: a.options }));
 
+  // ✅ Variations: (GraphQL branch only in your current code)
   const variations = isRest
     ? []
     : (product.variations?.nodes || [])
@@ -156,6 +150,13 @@ export default async function ProductDetail({
           name: v.name,
           price: normalizePrice(v.price).raw,
           stockStatus: v.stockStatus,
+
+          // best-effort fields (depends on your GraphQL schema)
+          manageStock: Boolean((v as any).manageStock),
+          stockQuantity: typeof (v as any).stockQuantity === "number" ? (v as any).stockQuantity : null,
+          backorders: String((v as any).backorders || "no"),
+          soldIndividually: Boolean((v as any).soldIndividually),
+
           attributes: (v.attributes?.nodes || []).reduce((acc: any, n: any) => {
             acc[n.name] = n.value;
             return acc;
@@ -163,7 +164,7 @@ export default async function ProductDetail({
         }))
         .filter((v: any) => typeof v.id === "number");
 
-  // --- USPs from REST meta (_product_usps)
+  // --- USPs
   const usps = Array.isArray((product as any).usps) ? (product as any).usps : [];
 
   // --- JSON-LD
@@ -178,7 +179,7 @@ export default async function ProductDetail({
     availability: stock,
   });
 
-  // --- YMAL (REST only for now)
+  // --- YMAL (REST only)
   let ymalProducts: any[] = [];
   if (isRest) {
     try {
@@ -201,22 +202,10 @@ export default async function ProductDetail({
   }
 
   const faqItems = [
-    {
-      q: "How long is delivery in the Philippines?",
-      a: "Usually 2–5 business days depending on your location.",
-    },
-    {
-      q: "Do you accept Cash on Delivery (COD)?",
-      a: "Yes, COD is available in supported areas.",
-    },
-    {
-      q: "Can I return or exchange?",
-      a: "Yes. If there’s an issue with your item, contact us within 7 days of delivery.",
-    },
-    {
-      q: "How do I choose the right size?",
-      a: "Check the Size options above. If unsure, message us and we’ll help.",
-    },
+    { q: "How long is delivery in the Philippines?", a: "Usually 2–5 business days depending on your location." },
+    { q: "Do you accept Cash on Delivery (COD)?", a: "Yes, COD is available in supported areas." },
+    { q: "Can I return or exchange?", a: "Yes. If there’s an issue with your item, contact us within 7 days of delivery." },
+    { q: "How do I choose the right size?", a: "Check the Size options above. If unsure, message us and we’ll help." },
   ];
 
   return (
@@ -229,17 +218,15 @@ export default async function ProductDetail({
         </Link>
       </div>
 
-      {/* HERO ROW: image + primary buy box */}
       <div className="grid gap-10 lg:grid-cols-2">
         {/* Gallery */}
-      <div className="space-y-3 min-w-0">
-        <div className="w-full max-w-full overflow-x-clip sm:overflow-visible">
-          {/* clamp only on mobile, normal on desktop */}
-          <div className="mx-auto w-full max-w-[92vw] sm:mx-0 sm:max-w-none">
-            <ProductGallery images={images} productName={name} />
+        <div className="space-y-3 min-w-0">
+          <div className="w-full max-w-full overflow-x-clip sm:overflow-visible">
+            <div className="mx-auto w-full max-w-[92vw] sm:mx-0 sm:max-w-none">
+              <ProductGallery images={images} productName={name} />
+            </div>
           </div>
         </div>
-      </div>
 
         {/* Info */}
         <div className="space-y-6">
@@ -247,7 +234,6 @@ export default async function ProductDetail({
             <h1 className="text-3xl font-semibold tracking-tight">{name}</h1>
             <div className="text-lg font-medium">₱{basePrice.toFixed(2)}</div>
 
-            {/* CRO microcopy + trust badges */}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span
                 className={[
@@ -272,7 +258,7 @@ export default async function ProductDetail({
                 Secure checkout via WooCommerce
               </span>
             </div>
-            
+
             {shortDescription ? (
               <div
                 className="prose prose-slate max-w-none text-sm text-[color:var(--color-muted-foreground)]"
@@ -282,8 +268,6 @@ export default async function ProductDetail({
           </div>
 
           {/* Add to cart */}
-          
-          {/* Add to cart (target for StickyATC) */}
           <div id="pdp-atc">
             <AddToCart
               product={{
@@ -295,27 +279,28 @@ export default async function ProductDetail({
                 currency,
                 attributes,
                 variations,
+
+                // ✅ pass stock fields down
+                stockStatus: stockStatusRaw,
+                manageStock,
+                stockQuantity,
+                backorders,
+                soldIndividually,
               }}
             />
           </div>
 
-          {/* USPs */}
           {usps.length ? <UspsCarousel usps={usps} /> : null}
 
-          {/* Details */}
           {description ? (
             <div className="pt-2">
               <div className="text-sm font-semibold">Details</div>
-              <div
-                className="prose prose-slate mt-3 max-w-none"
-                dangerouslySetInnerHTML={{ __html: description }}
-              />
+              <div className="prose prose-slate mt-3 max-w-none" dangerouslySetInnerHTML={{ __html: description }} />
             </div>
           ) : null}
         </div>
       </div>
 
-      {/* BELOW THE HERO: full-width CRO blocks */}
       <section className="mt-12 space-y-10">
         <PdpFaq items={faqItems} />
 
@@ -326,21 +311,13 @@ export default async function ProductDetail({
               slug: p.slug,
               name: p.name,
               price: p.price,
-              images: (p.images || []).map((i: any) => ({
-                src: i?.src,
-                alt: i?.alt,
-              })),
+              images: (p.images || []).map((i: any) => ({ src: i?.src, alt: i?.alt })),
             }))}
           />
         ) : null}
       </section>
 
-      <StickyAtc
-        name={name}
-        priceLabel={`₱${basePrice.toFixed(2)}`}
-        image={mainImg}
-        targetId="pdp-atc"
-      />
+      <StickyAtc name={name} priceLabel={`₱${basePrice.toFixed(2)}`} image={mainImg} targetId="pdp-atc" />
     </div>
   );
 }
