@@ -5,6 +5,8 @@ import "./globals.css";
 import { Providers } from "@/components/providers";
 import { baseMetadata } from "@/lib/seo/metadata";
 import { CartToastStack } from "@/components/cart/cart-toast";
+import { GoogleAnalytics } from '@next/third-parties/google'
+
 
 const inter = Inter({
   subsets: ["latin"],
@@ -20,6 +22,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <Providers>
           {children}
+          <GoogleAnalytics gaId="G-P9ECKCL0BF" />
           <CartToastStack />
         </Providers>
       </body>
