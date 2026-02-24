@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import NotFoundClient from "./not-found.client.tsx";
+import NotFoundClient from "./not-found.client";
 
 export default function NotFoundPage() {
   return (
