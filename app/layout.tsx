@@ -6,7 +6,12 @@ import { Providers } from "@/components/providers";
 import { baseMetadata } from "@/lib/seo/metadata";
 import { CartToastStack } from "@/components/cart/cart-toast";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "900"],
+  display: "swap",
+});
+
 export const metadata: Metadata = baseMetadata();
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

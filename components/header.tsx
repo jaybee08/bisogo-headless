@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useCart } from "@/lib/cart/store";
 import { cn } from "@/lib/utils";
@@ -17,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEffect, useState } from "react";
+import { Logo } from "@/components/brand/Logo";
 
 // shadcn Sheet (mobile menu)
 import {
@@ -55,8 +55,7 @@ export function Header() {
           className="sm:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 inline-flex items-center"
           aria-label="Bisogo home"
         >
-          <span className="logo-shine" aria-hidden="true" />
-          <span className="sr-only">Bisogo</span>
+          <Logo className="h-10 text-[#111]" />
         </Link>
 
         {/* Left */}
@@ -83,8 +82,7 @@ export function Header() {
                   </SheetHeader>
 
                   <div className="flex items-center gap-3 border-b pb-4">
-                    <span className="logo-shine" aria-hidden="true" />
-                    <span className="sr-only">Bisogo</span>
+                    <Logo className="h-10 text-[#111]" />
                   </div>
 
                   <nav className="mt-4 grid gap-2">
@@ -147,8 +145,7 @@ export function Header() {
 
           {/* DESKTOP: Normal left logo */}
           <Link href="/" className="hidden sm:inline-flex items-center" aria-label="Bisogo home">
-            <span className="logo-shine" aria-hidden="true" />
-            <span className="sr-only">Bisogo</span>
+            <Logo className="h-10 text-[#111]" />
           </Link>
 
           {/* Desktop nav */}
