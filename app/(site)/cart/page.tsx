@@ -18,6 +18,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import { getPHProvinces, getPHCities, getPHZipcodes } from "@/lib/ph-locations";
+
 type CheckoutResponse = { redirectUrl: string };
 
 type Guest = {
@@ -27,7 +29,7 @@ type Guest = {
   address1: string;
   address2: string;
   city: string;
-  state: string; // PH state code (e.g. "NCR", "CEB") when country=PH
+  state: string; // PH province/state code (e.g. "NCR", "CEB") when country=PH
   postcode: string;
   country: string; // "PH"
 };
@@ -81,83 +83,9 @@ type StoreCartItem = {
   };
 };
 
-const FREE_SHIPPING_THRESHOLD_PHP = 3000; // <- change this
-const PH_STATES: Array<{ code: string; name: string }> = [
-  { code: "NCR", name: "Metro Manila" },
-  { code: "CAR", name: "Cordillera Region" },
-  { code: "ABR", name: "Abra" },
-  { code: "AGN", name: "Agusan del Norte" },
-  { code: "AGS", name: "Agusan del Sur" },
-  { code: "AKL", name: "Aklan" },
-  { code: "ALB", name: "Albay" },
-  { code: "ANT", name: "Antique" },
-  { code: "APA", name: "Apayao" },
-  { code: "AUR", name: "Aurora" },
-  { code: "BAS", name: "Basilan" },
-  { code: "BAN", name: "Bataan" },
-  { code: "BTN", name: "Batanes" },
-  { code: "BTG", name: "Batangas" },
-  { code: "BEN", name: "Benguet" },
-  { code: "BIL", name: "Biliran" },
-  { code: "BOH", name: "Bohol" },
-  { code: "BUK", name: "Bukidnon" },
-  { code: "BUL", name: "Bulacan" },
-  { code: "CAG", name: "Cagayan" },
-  { code: "CAN", name: "Camarines Norte" },
-  { code: "CAS", name: "Camarines Sur" },
-  { code: "CAM", name: "Camiguin" },
-  { code: "CAP", name: "Capiz" },
-  { code: "CAT", name: "Catanduanes" },
-  { code: "CAV", name: "Cavite" },
-  { code: "CEB", name: "Cebu" },
-  { code: "DIN", name: "Dinagat Islands" },
-  { code: "EAS", name: "Eastern Samar" },
-  { code: "GUI", name: "Guimaras" },
-  { code: "IFU", name: "Ifugao" },
-  { code: "ILN", name: "Ilocos Norte" },
-  { code: "ILS", name: "Ilocos Sur" },
-  { code: "ILI", name: "Iloilo" },
-  { code: "ISA", name: "Isabela" },
-  { code: "KAL", name: "Kalinga" },
-  { code: "LUN", name: "La Union" },
-  { code: "LAG", name: "Laguna" },
-  { code: "LAN", name: "Lanao del Norte" },
-  { code: "LAS", name: "Lanao del Sur" },
-  { code: "LEY", name: "Leyte" },
-  { code: "MAD", name: "Marinduque" },
-  { code: "MAS", name: "Masbate" },
-  { code: "MSC", name: "Misamis Occidental" },
-  { code: "MSN", name: "Misamis Oriental" },
-  { code: "MOU", name: "Mountain Province" },
-  { code: "NEC", name: "Negros Occidental" },
-  { code: "NER", name: "Negros Oriental" },
-  { code: "NSA", name: "Northern Samar" },
-  { code: "NUE", name: "Nueva Ecija" },
-  { code: "NUV", name: "Nueva Vizcaya" },
-  { code: "MDC", name: "Occidental Mindoro" },
-  { code: "MDR", name: "Oriental Mindoro" },
-  { code: "PLW", name: "Palawan" },
-  { code: "PAM", name: "Pampanga" },
-  { code: "PAN", name: "Pangasinan" },
-  { code: "QUE", name: "Quezon" },
-  { code: "QUI", name: "Quirino" },
-  { code: "RIZ", name: "Rizal" },
-  { code: "ROM", name: "Romblon" },
-  { code: "WSA", name: "Samar" },
-  { code: "SIG", name: "Siquijor" },
-  { code: "SOR", name: "Sorsogon" },
-  { code: "SCO", name: "South Cotabato" },
-  { code: "SLE", name: "Southern Leyte" },
-  { code: "SUN", name: "Surigao del Norte" },
-  { code: "SUR", name: "Surigao del Sur" },
-  { code: "TAR", name: "Tarlac" },
-  { code: "TAW", name: "Tawi-Tawi" },
-  { code: "ZMB", name: "Zambales" },
-  { code: "ZAN", name: "Zamboanga del Norte" },
-  { code: "ZAS", name: "Zamboanga del Sur" },
-  { code: "ZSI", name: "Zamboanga Sibugay" },
-];
+const FREE_SHIPPING_THRESHOLD_PHP = 3000;
 
+// ---------- helpers ----------
 function isPH(country: string) {
   return (country || "").trim().toUpperCase() === "PH";
 }
@@ -203,7 +131,11 @@ function storeTotalsToCartTotals(totals: StoreCart["totals"] | undefined): CartT
 function SkeletonLine({ w = "w-20" }: { w?: string }) {
   return (
     <span
-      className={["inline-block h-4 rounded-md bg-[color:var(--color-muted)]", "animate-pulse", w].join(" ")}
+      className={[
+        "inline-block h-4 rounded-md bg-[color:var(--color-muted)]",
+        "animate-pulse",
+        w,
+      ].join(" ")}
       aria-hidden="true"
     />
   );
@@ -258,7 +190,7 @@ async function readWooError(res: Response) {
   return msg.replace(/^Error:\s*/i, "");
 }
 
-// Safety net (should not be needed once dropdown is used)
+// Safety net
 function normalizePHState(input: string) {
   const raw = (input || "").trim();
   if (!raw) return "";
@@ -282,11 +214,9 @@ function splitName(fullName: string) {
 function pickFreeShippingRate(pkg?: ShippingPackage) {
   if (!pkg?.shipping_rates?.length) return null;
 
-  // Woo typical free shipping method id
   const byMethod = pkg.shipping_rates.find((r) => r.method_id === "free_shipping");
   if (byMethod) return byMethod;
 
-  // fallback
   return pkg.shipping_rates.find((r) => /free/i.test(r.name || "")) || null;
 }
 
@@ -336,11 +266,12 @@ export default function CartPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponBusyCode, setCouponBusyCode] = useState<string | null>(null);
 
-  // ✅ loader for Get shipping rates
   const [ratesLoading, setRatesLoading] = useState(false);
 
   const [storeItems, setStoreItems] = useState<StoreCartItem[]>([]);
   const [qtyLimitsById, setQtyLimitsById] = useState<Record<number, QtyLimits>>({});
+
+  const shippingBlockRef = useRef<HTMLDivElement | null>(null);
 
   function set<K extends keyof Guest>(k: K, v: Guest[K]) {
     setGuest((p) => ({ ...p, [k]: v }));
@@ -353,8 +284,7 @@ export default function CartPage() {
       .join("|");
   }, [items]);
 
-  const autoShipRef = useRef<{ lastMode?: "free" | "paid" | null }>({ lastMode: null });
-
+  // Auto select shipping safeguards
   const autoShipPendingRef = useRef<{ rateId: string | null; tries: number }>({
     rateId: null,
     tries: 0,
@@ -374,6 +304,27 @@ export default function CartPage() {
       customer: isAuthed ? { name: data?.user?.name, email: data?.user?.email } : { ...guest },
     };
   }, [items, isAuthed, data?.user, guest]);
+
+  // PH location selects
+  const phProvinces = useMemo(() => getPHProvinces(), []);
+  const phCities = useMemo(() => (isPH(guest.country) ? getPHCities(guest.state) : []), [guest.country, guest.state]);
+  const phZipOptions = useMemo(() => {
+    if (!isPH(guest.country)) return [];
+    return getPHZipcodes(guest.state, guest.city);
+  }, [guest.country, guest.state, guest.city]);
+
+  useEffect(() => {
+    if (!isPH(guest.country)) return;
+    set("city", "");
+    set("postcode", "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guest.state]);
+
+  useEffect(() => {
+    if (!isPH(guest.country)) return;
+    if (phZipOptions.length === 1) set("postcode", phZipOptions[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [guest.city, guest.state]);
 
   function validateGuest() {
     if (isAuthed) return null;
@@ -474,7 +425,6 @@ export default function CartPage() {
         );
 
         if (seq !== syncSeq.current) return;
-
         if (!res.ok) throw new Error(await readWooError(res));
 
         const cj = (await res.json().catch(() => null)) as StoreCart | null;
@@ -500,10 +450,8 @@ export default function CartPage() {
 
     try {
       const { first, last } = splitName(guest.name);
-
       const country = (guest.country || "PH").toUpperCase();
 
-      // PH state must be a code from dropdown; fallback to normalize just in case
       const stateCode =
         country === "PH"
           ? ((guest.state || "").trim().toUpperCase() || normalizePHState(guest.state))
@@ -542,7 +490,6 @@ export default function CartPage() {
       });
 
       if (!res.ok) throw new Error(await readWooError(res));
-
       await refreshCart();
     } catch (e: any) {
       setError(e?.message || "Failed to fetch shipping rates");
@@ -612,13 +559,13 @@ export default function CartPage() {
       });
 
       if (!res.ok) throw new Error(await readWooError(res));
-
       await refreshCart();
     } catch (e: any) {
       setError(e?.message || "Failed to select shipping rate");
     }
   }
 
+  // Initial load
   useEffect(() => {
     const t = readCartToken();
     if (t) setCartToken(t);
@@ -626,6 +573,7 @@ export default function CartPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Sync local cart to Woo when local changes
   useEffect(() => {
     if (!hasHydrated) return;
 
@@ -669,52 +617,66 @@ export default function CartPage() {
     };
   }, [hasHydrated, items, syncCart]);
 
+  // ✅ Free shipping auto-select (robust)
+  const totalsSig = useMemo(() => {
+    const t = storeCart?.totals;
+    if (!t) return "";
+    return [
+      t.total_items,
+      t.total_discount,
+      t.total_shipping,
+      t.total_price,
+      t.currency_minor_unit,
+      t.currency_code,
+    ].join("|");
+  }, [storeCart?.totals]);
+
+  const shipSig = useMemo(() => {
+    const pkg = rates?.[0];
+    if (!pkg?.shipping_rates?.length) return "";
+    return pkg.shipping_rates.map((r) => `${r.rate_id}:${r.method_id}:${r.selected ? 1 : 0}:${r.price}`).join("|");
+  }, [rates]);
+
   useEffect(() => {
-    // Need shipping packages + totals
     const pkg = rates?.[0];
     const totals = storeCart?.totals;
     if (!pkg || !totals) return;
 
     const minor = totals.currency_minor_unit ?? 2;
-    const subtotalPhp = minorToNumber(totals.total_items, minor);
+    const itemsSubtotalPhp = minorToNumber(totals.total_items, minor);
 
     const freeRate = pickFreeShippingRate(pkg);
     const paidRate = pickDefaultPaidRate(pkg);
 
-    // If threshold reached: select free shipping (if available)
-    if (subtotalPhp >= FREE_SHIPPING_THRESHOLD_PHP && freeRate) {
-      // Already free selected -> nothing to do
-      if (freeRate.selected) {
-        autoShipRef.current.lastMode = "free";
-        return;
+    const shouldBeFree = itemsSubtotalPhp >= FREE_SHIPPING_THRESHOLD_PHP && !!freeRate;
+    const currentlySelected = pkg.shipping_rates.find((r) => r.selected) || null;
+
+    if (autoShipPendingRef.current.rateId) {
+      const wanted = autoShipPendingRef.current.rateId;
+      if (currentlySelected?.rate_id === wanted) {
+        autoShipPendingRef.current = { rateId: null, tries: 0 };
       }
+    }
 
-      // Guard: don’t spam reselect if we already tried and selection hasn't changed yet
-      if (autoShipRef.current.lastMode === "free") return;
+    const target = shouldBeFree ? freeRate : paidRate;
+    if (!target) return;
 
-      autoShipRef.current.lastMode = "free";
-      selectRate(pkg.package_id, freeRate.rate_id);
+    if (currentlySelected?.rate_id === target.rate_id) return;
+
+    const pending = autoShipPendingRef.current;
+    const isSamePending = pending.rateId === target.rate_id;
+
+    if (!isSamePending) {
+      autoShipPendingRef.current = { rateId: target.rate_id, tries: 0 };
+    } else if (pending.tries >= 2) {
       return;
     }
 
-    // OPTIONAL: if subtotal drops below threshold, auto-select a paid rate again
-    // If you don’t want auto-revert, delete this entire block.
-    if (subtotalPhp < FREE_SHIPPING_THRESHOLD_PHP) {
-      if (!paidRate) return;
+    autoShipPendingRef.current.tries += 1;
+    selectRate(pkg.package_id, target.rate_id);
 
-      // If already on paid rate, nothing to do
-      if (paidRate.selected) {
-        autoShipRef.current.lastMode = "paid";
-        return;
-      }
-
-      if (autoShipRef.current.lastMode === "paid") return;
-
-      autoShipRef.current.lastMode = "paid";
-      selectRate(pkg.package_id, paidRate.rate_id);
-    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rates, storeCart?.totals?.total_items]);
+  }, [totalsSig, shipSig]);
 
   const storeTotals = storeCart?.totals;
   const symbol = storeTotals?.currency_symbol || "₱";
@@ -732,15 +694,22 @@ export default function CartPage() {
       return;
     }
 
+    // ✅ HARDEN: must have rates loaded + selected rate
+    const firstPkg = rates?.[0];
+    const selectedRate = firstPkg?.shipping_rates?.find((r) => r.selected) || null;
+
+    if (!firstPkg || !firstPkg.shipping_rates?.length || !selectedRate) {
+      setError("Please click “Get shipping rates” and select a shipping method before checkout.");
+      setTimeout(() => {
+        shippingBlockRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+      return;
+    }
+
     setError(null);
     setLoading(true);
 
     try {
-      await updateCustomerForShipping();
-
-      const firstPkg = rates?.[0];
-      const selectedRate = firstPkg?.shipping_rates?.find((r) => r.selected) || null;
-
       const res = await fetch("/api/checkout/create-order", {
         method: "POST",
         headers: {
@@ -752,17 +721,15 @@ export default function CartPage() {
           items: payload.items,
           customer: payload.customer,
           coupons: appliedCoupons,
-          shipping: selectedRate
-            ? {
-                method_id: selectedRate.method_id,
-                instance_id: selectedRate.instance_id,
-                rate_id: selectedRate.rate_id,
-                title: selectedRate.name,
-                total_minor: selectedRate.price,
-                currency_symbol: symbol,
-                currency_minor_unit: minor,
-              }
-            : null,
+          shipping: {
+            method_id: selectedRate.method_id,
+            instance_id: selectedRate.instance_id,
+            rate_id: selectedRate.rate_id,
+            title: selectedRate.name,
+            total_minor: selectedRate.price,
+            currency_symbol: symbol,
+            currency_minor_unit: minor,
+          },
         }),
       });
 
@@ -772,13 +739,14 @@ export default function CartPage() {
         dataJson = text ? JSON.parse(text) : null;
       } catch {}
 
-      if (!res.ok) throw new Error((dataJson && (dataJson.error || dataJson.message)) || text || "Checkout failed");
+      if (!res.ok) {
+        throw new Error((dataJson && (dataJson.error || dataJson.message)) || text || "Checkout failed");
+      }
 
       const out = (dataJson || {}) as CheckoutResponse;
       if (!out.redirectUrl) throw new Error("Missing redirectUrl from server.");
 
       window.location.href = out.redirectUrl;
-      // window.location.href = `/pay?u=${encodeURIComponent(out.redirectUrl)}`;
     } catch (e: any) {
       setError(e?.message || "Checkout failed");
       setLoading(false);
@@ -787,81 +755,6 @@ export default function CartPage() {
 
   const fallbackSubtotalLabel = `${symbol}${(hasHydrated ? localSubtotal : 0).toFixed(2)}`;
   const lineIdFor = (i: { productId: number; variationId?: number }) => Number(i.variationId ?? i.productId);
-
-  const totalsSig = useMemo(() => {
-  const t = storeCart?.totals;
-  if (!t) return "";
-  return [
-    t.total_items,
-    t.total_discount,
-    t.total_shipping,
-    t.total_price,
-    t.currency_minor_unit,
-    t.currency_code,
-  ].join("|");
-}, [storeCart?.totals]);
-
-const shipSig = useMemo(() => {
-  const pkg = rates?.[0];
-  if (!pkg?.shipping_rates?.length) return "";
-  return pkg.shipping_rates
-    .map((r) => `${r.rate_id}:${r.method_id}:${r.selected ? 1 : 0}:${r.price}`)
-    .join("|");
-}, [rates]);
-
-useEffect(() => {
-  const pkg = rates?.[0];
-  const totals = storeCart?.totals;
-  if (!pkg || !totals) return;
-
-  const minor = totals.currency_minor_unit ?? 2;
-
-  // Choose what threshold is based on:
-  // - Usually free shipping is based on ITEMS subtotal (pre-shipping)
-  const itemsSubtotalPhp = minorToNumber(totals.total_items, minor);
-
-  const freeRate = pickFreeShippingRate(pkg);
-  const paidRate = pickDefaultPaidRate(pkg);
-
-  // If free shipping rate exists and threshold reached → prefer free
-  const shouldBeFree = itemsSubtotalPhp >= FREE_SHIPPING_THRESHOLD_PHP && !!freeRate;
-
-  const currentlySelected =
-    pkg.shipping_rates.find((r) => r.selected) || null;
-
-  // If we have a pending auto-select and it “stuck”, clear pending
-  if (autoShipPendingRef.current.rateId) {
-    const wanted = autoShipPendingRef.current.rateId;
-    if (currentlySelected?.rate_id === wanted) {
-      autoShipPendingRef.current = { rateId: null, tries: 0 };
-    }
-  }
-
-  // Decide the target rate
-  const target = shouldBeFree ? freeRate : paidRate;
-  if (!target) return;
-
-  // Already selected → nothing to do
-  if (currentlySelected?.rate_id === target.rate_id) return;
-
-  // Avoid infinite loops: only auto-attempt a couple times per “cycle”
-  // (cycle resets once selection changes / sticks)
-  const pending = autoShipPendingRef.current;
-  const isSamePending = pending.rateId === target.rate_id;
-
-  if (!isSamePending) {
-    autoShipPendingRef.current = { rateId: target.rate_id, tries: 0 };
-  } else if (pending.tries >= 2) {
-    return;
-  }
-
-  autoShipPendingRef.current.tries += 1;
-
-  // Fire selection (this will refreshCart() inside selectRate)
-  selectRate(pkg.package_id, target.rate_id);
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [totalsSig, shipSig]);
 
   return (
     <div className="container py-10">
@@ -972,10 +865,7 @@ useEffect(() => {
                 {appliedCoupons.map((c) => {
                   const removingThis = couponLoading && couponBusyCode === c;
                   return (
-                    <div
-                      key={c}
-                      className="flex items-center justify-between rounded-md border border-[color:var(--color-border)] px-3 py-2 text-sm"
-                    >
+                    <div key={c} className="flex items-center justify-between rounded-md border border-[color:var(--color-border)] px-3 py-2 text-sm">
                       <span className="font-medium">{c}</span>
                       <button
                         type="button"
@@ -999,12 +889,7 @@ useEffect(() => {
               </div>
             ) : (
               <div className="flex gap-2">
-                <Input
-                  placeholder="Enter code"
-                  value={coupon}
-                  onChange={(e) => setCoupon(e.target.value)}
-                  disabled={couponLoading}
-                />
+                <Input placeholder="Enter code" value={coupon} onChange={(e) => setCoupon(e.target.value)} disabled={couponLoading} />
                 <Button type="button" variant="outline" onClick={applyCoupon} disabled={couponLoading || !coupon.trim()}>
                   {couponLoading && couponBusyCode === "__apply__" ? (
                     <span className="inline-flex items-center gap-2">
@@ -1020,68 +905,83 @@ useEffect(() => {
           </div>
 
           {/* Shipping */}
-          <div className="mt-5 space-y-3">
+          <div ref={shippingBlockRef} className="mt-5 space-y-3">
             <div className="text-sm font-semibold">Shipping</div>
 
             {!isAuthed ? (
               <>
                 <div className="grid grid-cols-1 gap-2">
-                  <Input
-                    placeholder="City"
-                    value={guest.city}
-                    onChange={(e) => set("city", e.target.value)}
-                    disabled={ratesLoading}
-                  />
-
+                  {/* Province */}
                   {isPH(guest.country) ? (
-                    <Select
-                      value={guest.state}
-                      onValueChange={(v) => set("state", v)}
-                      disabled={ratesLoading}
-                    >
+                    <Select value={guest.state} onValueChange={(v) => set("state", v)} disabled={ratesLoading}>
                       <SelectTrigger className="h-10 text-base sm:text-sm">
                         <SelectValue placeholder="Select province" />
                       </SelectTrigger>
                       <SelectContent className="max-h-[280px]">
-                        {PH_STATES.map((s) => (
-                          <SelectItem key={s.code} value={s.code}>
-                            {s.name}
+                          {phProvinces.map((p, idx) => (
+                            <SelectItem key={`${p.code}-${idx}`} value={p.code}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <Input placeholder="State/Province" value={guest.state} onChange={(e) => set("state", e.target.value)} disabled={ratesLoading} />
+                  )}
+
+                  {/* City */}
+                  {isPH(guest.country) ? (
+                    <Select value={guest.city} onValueChange={(v) => set("city", v)} disabled={ratesLoading || !guest.state}>
+                      <SelectTrigger className="h-10 text-base sm:text-sm">
+                        <SelectValue placeholder={guest.state ? "Select city/municipality" : "Select province first"} />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[280px]">
+                        {phCities.map((c, idx) => (
+                          <SelectItem key={`${c.name}-${idx}`} value={c.name}>
+                            {c.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   ) : (
-                    <Input
-                      placeholder="State/Province"
-                      value={guest.state}
-                      onChange={(e) => set("state", e.target.value)}
-                      disabled={ratesLoading}
-                    />
+                    <Input placeholder="City" value={guest.city} onChange={(e) => set("city", e.target.value)} disabled={ratesLoading} />
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <Input
-                    placeholder="Postal code"
-                    value={guest.postcode}
-                    onChange={(e) => set("postcode", e.target.value)}
-                    disabled={ratesLoading}
-                  />
-                  <Input
-                    placeholder="Country (PH)"
-                    value={guest.country}
-                    onChange={(e) => set("country", e.target.value)}
-                    disabled={ratesLoading}
-                  />
+                  {/* ZIP */}
+                  {isPH(guest.country) ? (
+                    phZipOptions.length ? (
+                      <Select value={guest.postcode} onValueChange={(v) => set("postcode", v)} disabled={ratesLoading || !guest.city}>
+                        <SelectTrigger className="h-10 text-base sm:text-sm">
+                          <SelectValue placeholder="ZIP" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[280px]">
+                          {phZipOptions.map((z) => (
+                            <SelectItem key={z} value={z}>
+                              {z}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Input
+                        placeholder="ZIP"
+                        value={guest.postcode}
+                        onChange={(e) => set("postcode", e.target.value)}
+                        disabled={ratesLoading || !guest.city}
+                        inputMode="numeric"
+                      />
+                    )
+                  ) : (
+                    <Input placeholder="Postal code" value={guest.postcode} onChange={(e) => set("postcode", e.target.value)} disabled={ratesLoading} />
+                  )}
+
+                  {/* Country */}
+                  <Input placeholder="Country (PH)" value={guest.country} onChange={(e) => set("country", e.target.value)} disabled={ratesLoading} />
                 </div>
 
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full"
-                  onClick={updateCustomerForShipping}
-                  disabled={ratesLoading}
-                >
+                <Button type="button" variant="outline" className="w-full" onClick={updateCustomerForShipping} disabled={ratesLoading}>
                   {ratesLoading ? (
                     <span className="inline-flex items-center gap-2">
                       <SpinnerDot />
@@ -1126,7 +1026,7 @@ useEffect(() => {
               </div>
             ) : (
               <div className="text-xs text-[color:var(--color-muted-foreground)]">
-                Enter your address to see available shipping methods.
+                Enter your address and click “Get shipping rates”.
               </div>
             )}
           </div>
