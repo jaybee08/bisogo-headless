@@ -55,14 +55,8 @@ export function Header() {
           className="sm:hidden absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 inline-flex items-center"
           aria-label="Bisogo home"
         >
-          <Image
-            src="/brand/bisogo-logo-520x140.svg"
-            alt="Bisogo"
-            width={150}
-            height={40}
-            priority
-            className="block h-10 w-auto"
-          />
+          <span className="logo-shine" aria-hidden="true" />
+          <span className="sr-only">Bisogo</span>
         </Link>
 
         {/* Left */}
@@ -89,14 +83,8 @@ export function Header() {
                   </SheetHeader>
 
                   <div className="flex items-center gap-3 border-b pb-4">
-                    <Image
-                      src="/brand/bisogo-logo-520x140.svg"
-                      alt="Bisogo"
-                      width={170}
-                      height={44}
-                      className="block h-10 w-auto"
-                      priority
-                    />
+                    <span className="logo-shine" aria-hidden="true" />
+                    <span className="sr-only">Bisogo</span>
                   </div>
 
                   <nav className="mt-4 grid gap-2">
@@ -158,15 +146,9 @@ export function Header() {
           </div>
 
           {/* DESKTOP: Normal left logo */}
-          <Link href="/" className="hidden sm:inline-flex items-center">
-            <Image
-              src="/brand/bisogo-logo-520x140.svg"
-              alt="Bisogo"
-              width={170}
-              height={44}
-              priority
-              className="block h-10 w-auto"
-            />
+          <Link href="/" className="hidden sm:inline-flex items-center" aria-label="Bisogo home">
+            <span className="logo-shine" aria-hidden="true" />
+            <span className="sr-only">Bisogo</span>
           </Link>
 
           {/* Desktop nav */}
