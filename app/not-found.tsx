@@ -1,20 +1,33 @@
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
+import { Suspense } from "react";
+import NotFoundClient from "./not-found.client.tsx";
 
-export default function NotFound() {
+export default function NotFoundPage() {
   return (
     <div className="container py-16">
-      <div className="mx-auto max-w-xl rounded-[var(--radius)] border border-[color:var(--color-border)] p-10 text-center">
-        <h1 className="text-2xl font-semibold">Page not found</h1>
-        <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">The page you’re looking for doesn’t exist.</p>
-        <div className="mt-6 flex justify-center gap-3">
-          <Button asChild>
-            <Link href="/">Go home</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/blog">Visit blog</Link>
-          </Button>
-        </div>
+      <h1 className="text-3xl font-semibold tracking-tight">Page not found</h1>
+      <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
+        The page you’re looking for doesn’t exist.
+      </p>
+
+      {/* ✅ Any component that uses useSearchParams MUST be under Suspense */}
+      <Suspense fallback={null}>
+        <NotFoundClient />
+      </Suspense>
+
+      <div className="mt-6 flex gap-3">
+        <Link
+          href="/"
+          className="rounded-full border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-muted)]"
+        >
+          Go home
+        </Link>
+        <Link
+          href="/shop"
+          className="rounded-full border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-muted)]"
+        >
+          Shop
+        </Link>
       </div>
     </div>
   );
