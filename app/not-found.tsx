@@ -1,33 +1,31 @@
 import Link from "next/link";
-import { Suspense } from "react";
 import NotFoundClient from "./not-found.client";
 
 export default function NotFoundPage() {
   return (
     <div className="container py-16">
-      <h1 className="text-3xl font-semibold tracking-tight">Page not found</h1>
-      <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
-        The page you’re looking for doesn’t exist.
-      </p>
+      <div className="mx-auto max-w-xl rounded-[var(--radius)] border border-[color:var(--color-border)] bg-white p-6">
+        <h1 className="text-2xl font-semibold tracking-tight">Page not found</h1>
+        <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
+          The page you’re looking for doesn’t exist.
+        </p>
 
-      {/* ✅ Any component that uses useSearchParams MUST be under Suspense */}
-      <Suspense fallback={null}>
         <NotFoundClient />
-      </Suspense>
 
-      <div className="mt-6 flex gap-3">
-        <Link
-          href="/"
-          className="rounded-full border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-muted)]"
-        >
-          Go home
-        </Link>
-        <Link
-          href="/shop"
-          className="rounded-full border border-[color:var(--color-border)] px-4 py-2 text-sm hover:bg-[color:var(--color-muted)]"
-        >
-          Shop
-        </Link>
+        <div className="mt-6 flex flex-wrap gap-2">
+          <Link
+            href="/"
+            className="inline-flex h-10 items-center justify-center rounded-[var(--radius)] bg-black px-4 text-sm font-medium text-white"
+          >
+            Go home
+          </Link>
+          <Link
+            href="/shop"
+            className="inline-flex h-10 items-center justify-center rounded-[var(--radius)] border border-[color:var(--color-border)] px-4 text-sm font-medium"
+          >
+            Browse shop
+          </Link>
+        </div>
       </div>
     </div>
   );

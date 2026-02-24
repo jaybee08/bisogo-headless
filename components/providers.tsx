@@ -1,122 +1,103 @@
 "use client";
 
-import * as React from "react";
 import { SessionProvider } from "next-auth/react";
-import { usePathname, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
-function TopRouteLoader() {
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  const [visible, setVisible] = React.useState(false);
-  const [progress, setProgress] = React.useState(0);
-
-  const rafRef = React.useRef<number | null>(null);
-  const tickingRef = React.useRef(false);
-
-  const start = React.useCallback(() => {
-    if (tickingRef.current) return;
-
-    tickingRef.current = true;
-    setVisible(true);
-    setProgress((p) => (p > 0 && p < 90 ? p : 12)); // initial jump
-
-    const tick = () => {
-      setProgress((p) => {
-        // slowly approach 90%
-        const next = p + Math.max(0.25, (90 - p) * 0.06);
-        return next >= 90 ? 90 : next;
-      });
-      rafRef.current = window.requestAnimationFrame(tick);
-    };
-
-    rafRef.current = window.requestAnimationFrame(tick);
-  }, []);
-
-  const done = React.useCallback(() => {
-    if (!tickingRef.current) return;
-
-    tickingRef.current = false;
-    if (rafRef.current) {
-      window.cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-
-    setProgress(100);
-    window.setTimeout(() => {
-      setVisible(false);
-      setProgress(0);
-    }, 220);
-  }, []);
-
-  // Start loader on internal link click (capture phase)
-  React.useEffect(() => {
-    const onClick = (e: MouseEvent) => {
-      if (e.defaultPrevented) return;
-      if (e.button !== 0) return; // left click only
-      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-
-      const target = e.target as HTMLElement | null;
-      const a = target?.closest?.("a[href]") as HTMLAnchorElement | null;
-      if (!a) return;
-
-      const hrefAttr = a.getAttribute("href") || "";
-      if (!hrefAttr) return;
-      if (hrefAttr.startsWith("#")) return;
-      if (a.getAttribute("target") === "_blank") return;
-      if (a.getAttribute("download") != null) return;
-
-      // ignore external links + same-page nav
-      try {
-        const url = new URL(a.href, window.location.href);
-        if (url.origin !== window.location.origin) return;
-
-        const current = window.location.pathname + window.location.search;
-        const next = url.pathname + url.search;
-        if (current === next) return;
-
-        start();
-      } catch {
-        // ignore
-      }
-    };
-
-    document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
-  }, [start]);
-
-  // Stop loader when route changes
-  React.useEffect(() => {
-    done();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname, searchParams?.toString()]);
-
+/**
+ * Minimal top loading bar (Spotify green).
+ * - Starts on internal link click (instant)
+ * - Finishes when pathname changes
+ * - No useSearchParams -> avoids Suspense build issues
+ */
+function TopProgressBar({ active }: { active: boolean }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed left-0 top-0 z-[9999] h-[2px] w-full"
-      style={{
-        opacity: visible ? 1 : 0,
-        transition: "opacity 200ms ease",
-      }}
+      className="pointer-events-none fixed left-0 top-0 z-[9999] h-[3px] w-full"
     >
       <div
-        // className="h-full bg-[color:var(--color-foreground)]"
-        className="h-full bg-[#1DB954]"
+        className={[
+          "h-full origin-left bg-[#1DB954] transition-opacity duration-150",
+          active ? "opacity-100" : "opacity-0",
+        ].join(" ")}
         style={{
-          width: `${progress}%`,
-          transition: "width 120ms ease",
-          transform: "translateZ(0)",
+          // Fake progress animation while loading
+          animation: active ? "bisogoProgress 1.1s ease-out infinite" : "none",
         }}
       />
+      <style jsx global>{`
+        @keyframes bisogoProgress {
+          0% {
+            transform: scaleX(0.08);
+          }
+          40% {
+            transform: scaleX(0.55);
+          }
+          70% {
+            transform: scaleX(0.82);
+          }
+          100% {
+            transform: scaleX(0.98);
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const [loading, setLoading] = useState(false);
+
+  // Stop loader after navigation completes (pathname changed)
+  useEffect(() => {
+    setLoading(false);
+  }, [pathname]);
+
+  // Start loader immediately when clicking any internal link
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      // allow new tab / download / etc
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      const target = e.target as HTMLElement | null;
+      const a = target?.closest?.("a") as HTMLAnchorElement | null;
+      if (!a) return;
+
+      const href = a.getAttribute("href") || "";
+      if (!href) return;
+
+      // ignore external links / anchors / mailto / tel
+      if (href.startsWith("#")) return;
+      if (href.startsWith("mailto:") || href.startsWith("tel:")) return;
+      if (a.target === "_blank") return;
+
+      // If it’s an absolute URL, only handle if same-origin
+      try {
+        const url = new URL(href, window.location.href);
+        if (url.origin !== window.location.origin) return;
+
+        // same page -> don’t animate
+        const nextPath = url.pathname + url.search + url.hash;
+        const currentPath = window.location.pathname + window.location.search + window.location.hash;
+        if (nextPath === currentPath) return;
+
+        // start
+        setLoading(true);
+      } catch {
+        // relative path -> safe to treat as internal
+        if (href.startsWith("/")) setLoading(true);
+      }
+    };
+
+    document.addEventListener("click", onClick, true);
+    return () => document.removeEventListener("click", onClick, true);
+  }, []);
+
   return (
     <SessionProvider>
-      <TopRouteLoader />
+      <TopProgressBar active={loading} />
       {children}
     </SessionProvider>
   );

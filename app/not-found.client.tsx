@@ -1,12 +1,14 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function NotFoundClient() {
-  const sp = useSearchParams();
+  const [from, setFrom] = useState<string | null>(null);
 
-  // Example: if you were using ?from=... or ?reason=... (optional)
-  const from = sp.get("from");
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    setFrom(url.searchParams.get("from"));
+  }, []);
 
   if (!from) return null;
 
