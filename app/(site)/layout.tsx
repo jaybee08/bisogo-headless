@@ -2,7 +2,6 @@ import { Header } from "@/components/header";
 import { Footer } from "@/components/footer";
 import { CartToastStack } from "@/components/cart/cart-toast";
 
-
 export default function SiteLayout({
   children,
   modal,
