@@ -1,14 +1,14 @@
 "use client";
 
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 export type CartItem = {
   key: string; // local deterministic key (productId:variationId:attrs)
   productId: number;
   variationId?: number;
 
-  // ✅ NEW: Woo Store API cart line key (32 chars) used for /cart/update-item
+  // ✅ Woo Store API cart line key (32 chars) used for /cart/update-item
   storeKey?: string;
 
   slug: string;
@@ -37,29 +37,20 @@ type CartState = {
   totals: CartTotals | null;
   setTotals: (t: CartTotals | null) => void;
 
-  // ✅ When you know totals are stale (coupon/address/shipping-rate changes)
   invalidateTotals: () => void;
 
   addItem: (item: Omit<CartItem, "key" | "storeKey">) => void;
   removeItem: (key: string) => void;
 
-  // Keep your old API (used by CartLine)
   setQuantity: (key: string, quantity: number) => void;
-
-  // ✅ NEW: UI-only qty update that does NOT clear totals immediately
-  // (because totals will be replaced by Woo response after update-item)
   setQuantityFast: (key: string, quantity: number) => void;
 
   clear: () => void;
 
   count: () => number;
-  subtotal: () => number; // local fallback
+  subtotal: () => number;
 
-  // ✅ NEW: attach Woo store cart keys to local items after /api/store/cart
-  // Accepts a minimal shape from Woo Store API cart response.
   attachStoreKeys: (wooItems: Array<{ key: string; id: number }>) => void;
-
-  // ✅ NEW: helper to find an item’s Woo storeKey quickly
   getStoreKeyForLocalKey: (localKey: string) => string | undefined;
 };
 
@@ -70,9 +61,6 @@ function makeKey(item: Omit<CartItem, "key" | "storeKey">) {
   return `${item.productId}:${item.variationId || 0}:${attrs}`;
 }
 
-// Woo cart line "id" is typically:
-// - simple product: productId
-// - variation: variationId
 function desiredWooLineId(i: { productId: number; variationId?: number }) {
   return Number(i.variationId ?? i.productId);
 }
@@ -93,14 +81,10 @@ export const useCart = create<CartState>()(
           const key = makeKey(item);
           const existing = state.items.find((i) => i.key === key);
 
-          // Adding items changes cart → totals will be recalculated by Woo
-          // Clear totals so UI can show "updating…" if you want.
           if (existing) {
             return {
               items: state.items.map((i) =>
-                i.key === key
-                  ? { ...i, quantity: i.quantity + item.quantity }
-                  : i
+                i.key === key ? { ...i, quantity: i.quantity + item.quantity } : i
               ),
               totals: null,
             };
@@ -118,7 +102,6 @@ export const useCart = create<CartState>()(
           totals: null,
         })),
 
-      // OLD behavior (kept): clears totals immediately
       setQuantity: (key, quantity) =>
         set((state) => ({
           items: state.items.map((i) =>
@@ -127,7 +110,6 @@ export const useCart = create<CartState>()(
           totals: null,
         })),
 
-      // ✅ NEW: do not clear totals (prevents "Total: —" flicker)
       setQuantityFast: (key, quantity) =>
         set((state) => ({
           items: state.items.map((i) =>
@@ -143,12 +125,10 @@ export const useCart = create<CartState>()(
       getStoreKeyForLocalKey: (localKey) =>
         get().items.find((i) => i.key === localKey)?.storeKey,
 
-      // ✅ Map Woo cart line keys -> local items so we can update-item quickly
       attachStoreKeys: (wooItems) =>
         set((state) => {
           if (!Array.isArray(wooItems) || !wooItems.length) return state;
 
-          // Build lookup by Woo "id" (productId or variationId)
           const wooById = new Map<number, string>();
           for (const w of wooItems) {
             const id = Number(w?.id);
@@ -174,7 +154,15 @@ export const useCart = create<CartState>()(
     }),
     {
       name: "bisogo_cart_v1",
+
+      // ✅ CRITICAL: do NOT touch localStorage on server/build
+      storage:
+        typeof window === "undefined"
+          ? undefined
+          : createJSONStorage(() => localStorage),
+
       onRehydrateStorage: () => (state) => {
+        // runs on client after storage loads
         state?.setHasHydrated(true);
       },
     }
