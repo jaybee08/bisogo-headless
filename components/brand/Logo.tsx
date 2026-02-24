@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useId } from "react";
 import { cn } from "@/lib/utils";
 
@@ -7,9 +9,11 @@ type LogoProps = {
 };
 
 export function Logo({ className, shine = true }: LogoProps) {
-  const uid = useId(); // unique per instance
-  const clipId = `bisogo-clip-${uid}`;
-  const gradId = `bisogo-shine-${uid}`;
+  const uid = useId(); // stable across SSR hydration for client components
+  // useId() may include ":" in React 18; safe in HTML ids, but we normalize anyway
+  const safeUid = uid.replace(/[:]/g, "");
+  const clipId = `bisogo-clip-${safeUid}`;
+  const gradId = `bisogo-shine-${safeUid}`;
 
   return (
     <span className={cn("relative inline-block", className)}>
@@ -35,7 +39,7 @@ export function Logo({ className, shine = true }: LogoProps) {
           </clipPath>
 
           {/* Premium rare sweep */}
-           <linearGradient id={gradId} x1="-1" y1="0" x2="1" y2="0">
+          <linearGradient id={gradId} x1="-1" y1="0" x2="1" y2="0">
             {/* Wider + softer band */}
             <stop offset="0" stopColor="rgba(255,255,255,0)" />
             <stop offset="0.38" stopColor="rgba(255,255,255,0)" />
