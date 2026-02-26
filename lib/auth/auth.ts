@@ -1,6 +1,7 @@
+// lib/auth/auth.ts
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
-import { getOrCreateWooCustomer } from "@/lib/woo/customers";
+import { getOrCreateWooCustomerId } from "@/lib/woo/customer"; // ✅ matches your file/export
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
@@ -13,32 +14,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
   callbacks: {
     async jwt({ token, account, profile }) {
-      // Only run on initial sign-in
-      if (account?.provider === "google" && !token.wooCustomerId) {
-        const email =
-          (profile as any)?.email ||
-          token.email; // fallback
+      // We'll attach Woo customer id to the JWT.
+      // 1) Try on initial Google sign-in (account exists)
+      // 2) If it's still missing later (e.g. Woo was down), retry quietly.
+      const needsWoo = !(token as any).wooCustomerId;
 
-        const name =
-          (profile as any)?.name ||
-          token.name ||
-          undefined;
+      const email =
+        (profile as any)?.email ||
+        (token.email as string | undefined) ||
+        "";
 
-        if (email) {
-          try {
-            const id = await getOrCreateWooCustomer({ email, name });
-            token.wooCustomerId = id;
-          } catch (e) {
-            // Fail-safe: don’t block login if Woo is down
-            console.error("[auth] Woo customer sync failed:", e);
-          }
+      const name =
+        (profile as any)?.name ||
+        (token.name as string | undefined) ||
+        null;
+
+      const isInitialGoogleSignIn = account?.provider === "google";
+
+      if (needsWoo && email && (isInitialGoogleSignIn || !!token.email)) {
+        try {
+          const id = await getOrCreateWooCustomerId({ email, name });
+          (token as any).wooCustomerId = id;
+        } catch (e) {
+          // Fail-safe: don't block login if Woo is down
+          console.error("[auth] Woo customer sync failed:", e);
         }
       }
+
       return token;
     },
 
     async session({ session, token }) {
-      // Expose Woo customer id
       (session.user as any).wooCustomerId = (token as any).wooCustomerId ?? null;
       return session;
     },

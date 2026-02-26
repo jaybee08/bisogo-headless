@@ -10,7 +10,10 @@ export const users = pgTable("users", {
   name: text("name"),
   email: text("email").unique(),
   emailVerified: timestamp("email_verified", { withTimezone: true, mode: "date" }),
-  image: text("image")
+  image: text("image"),
+
+    // ✅ add this
+  wooCustomerId: integer("woo_customer_id"),
 });
 
 export const accounts = pgTable(
