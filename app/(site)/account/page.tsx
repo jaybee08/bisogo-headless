@@ -2,14 +2,12 @@ import { auth, signIn, signOut } from "@/lib/auth/auth";
 import { Button } from "@/components/ui/button";
 import { Facebook } from "lucide-react";
 import { SignOutButton } from "@/components/account/signout-button";
-
+import { AccountProfile } from "@/components/account/account-profile";
 
 export const revalidate = 0;
-const fbEnabled = false; // toggle later when Meta app is ready
-
+const fbEnabled = false;
 
 function GoogleGWhiteIcon(props: React.SVGProps<SVGSVGElement>) {
-  // Simple "G" mark (white) so it works on colored buttons
   return (
     <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
       <path
@@ -28,15 +26,18 @@ export default async function AccountPage() {
       <div className="mx-auto max-w-xl rounded-[var(--radius)] border border-[color:var(--color-border)] p-8">
         <h1 className="text-2xl font-semibold tracking-tight">Account</h1>
         <p className="mt-2 text-sm text-[color:var(--color-muted-foreground)]">
-          Sign in to attach customer details to your WooCommerce order.
+          Manage your Bisogo profile and WooCommerce shipping details.
         </p>
 
         {session?.user ? (
-          <div className="mt-6 space-y-3">
+          <div className="mt-6 space-y-4">
             <div className="text-sm">
               <div className="text-[color:var(--color-muted-foreground)]">Signed in as</div>
               <div className="mt-1 font-medium">{session.user.name ?? session.user.email}</div>
             </div>
+
+            {/* ✅ Woo profile editor */}
+            <AccountProfile />
 
             <form
               action={async () => {
@@ -44,12 +45,11 @@ export default async function AccountPage() {
                 await signOut({ redirectTo: "/" });
               }}
             >
-            <SignOutButton />
+              <SignOutButton />
             </form>
           </div>
         ) : (
           <div className="mt-6 space-y-3">
-            {/* GOOGLE (orange button, white G icon) */}
             <form
               action={async () => {
                 "use server";
@@ -65,11 +65,10 @@ export default async function AccountPage() {
               </Button>
             </form>
 
-            {/* FACEBOOK (blue button, white icon) */}
             <form
               action={async () => {
                 "use server";
-                if (!fbEnabled) return; // ✅ no-op while disabled
+                if (!fbEnabled) return;
                 await signIn("facebook", { redirectTo: "/account" });
               }}
             >
