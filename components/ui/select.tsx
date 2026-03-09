@@ -116,7 +116,7 @@ const SelectItem = React.forwardRef<
     className={cn(
       // ✅ keep list readable and consistent with trigger; also avoids iOS zoom weirdness
       "relative flex w-full cursor-default select-none items-center rounded-[calc(var(--radius)-6px)] py-2 pl-8 pr-2 text-base sm:text-sm outline-none",
-      "focus:bg-[color:var(--color-muted)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
+      "focus:bg-[color:var(--color-muted)]",
       className
     )}
     {...props}

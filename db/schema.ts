@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, integer, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, jsonb, index, primaryKey } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 /**
@@ -12,7 +12,7 @@ export const users = pgTable("users", {
   emailVerified: timestamp("email_verified", { withTimezone: true, mode: "date" }),
   image: text("image"),
 
-    // ✅ add this
+  // optional
   wooCustomerId: integer("woo_customer_id"),
 });
 
@@ -29,17 +29,17 @@ export const accounts = pgTable(
     token_type: text("token_type"),
     scope: text("scope"),
     id_token: text("id_token"),
-    session_state: text("session_state")
+    session_state: text("session_state"),
   },
   (t) => ({
-    pk: primaryKey({ columns: [t.provider, t.providerAccountId] })
+    pk: primaryKey({ columns: [t.provider, t.providerAccountId] }),
   })
 );
 
 export const sessions = pgTable("sessions", {
   sessionToken: text("session_token").primaryKey().notNull(),
   userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  expires: timestamp("expires", { withTimezone: true, mode: "date" }).notNull()
+  expires: timestamp("expires", { withTimezone: true, mode: "date" }).notNull(),
 });
 
 export const verificationTokens = pgTable(
@@ -47,14 +47,33 @@ export const verificationTokens = pgTable(
   {
     identifier: text("identifier").notNull(),
     token: text("token").notNull(),
-    expires: timestamp("expires", { withTimezone: true, mode: "date" }).notNull()
+    expires: timestamp("expires", { withTimezone: true, mode: "date" }).notNull(),
   },
   (t) => ({
-    pk: primaryKey({ columns: [t.identifier, t.token] })
+    pk: primaryKey({ columns: [t.identifier, t.token] }),
   })
 );
 
 export const userRelations = relations(users, ({ many }) => ({
   accounts: many(accounts),
-  sessions: many(sessions)
+  sessions: many(sessions),
 }));
+
+/**
+ * ✅ B1 QUICK FIX TABLE (matches your DB screenshot)
+ * Table: public.hotel_shortlinks
+ * Columns: id, payload, created_at, expires_at
+ */
+export const hotelShortlinks = pgTable(
+  "hotel_shortlinks",
+  {
+    id: text("id").primaryKey().notNull(), // short code
+    payload: jsonb("payload").notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }), // nullable in your DB
+  },
+  (t) => ({
+    createdAtIdx: index("hotel_shortlinks_created_at_idx").on(t.createdAt),
+  })
+);

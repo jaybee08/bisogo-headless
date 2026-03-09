@@ -30,6 +30,7 @@ import {
 const nav = [
   { href: "/blog", label: "Travel" },
   { href: "/shop", label: "Shop" },
+  { label: "Hotels", href: "/hotels" },
 ];
 
 export function Header() {
