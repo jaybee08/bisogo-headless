@@ -17,6 +17,66 @@ type SearchParams = {
   sort?: string;
 };
 
+type NormalizedImage = {
+  url: string | null;
+  alt: string | null;
+  thumbnail: string | null;
+  medium: string | null;
+  large: string | null;
+};
+
+function getRestImage(img?: any): NormalizedImage {
+  if (!img) {
+    return {
+      url: null,
+      alt: null,
+      thumbnail: null,
+      medium: null,
+      large: null,
+    };
+  }
+
+  return {
+    url: img.src || null,
+    alt: img.alt || null,
+    thumbnail: img.thumbnail || img.src || null,
+    medium: img.medium || img.src || null,
+    large: img.large || img.src || null,
+  };
+}
+
+function getGqlImage(img?: any): NormalizedImage {
+  if (!img) {
+    return {
+      url: null,
+      alt: null,
+      thumbnail: null,
+      medium: null,
+      large: null,
+    };
+  }
+
+  const sizes = Array.isArray(img.mediaDetails?.sizes) ? img.mediaDetails.sizes : [];
+
+  return {
+    url: img.sourceUrl || null,
+    alt: img.altText || null,
+    thumbnail:
+      sizes.find((s: any) => s?.name === "thumbnail")?.sourceUrl ||
+      img.sourceUrl ||
+      null,
+    medium:
+      sizes.find((s: any) => s?.name === "medium")?.sourceUrl ||
+      sizes.find((s: any) => s?.name === "medium_large")?.sourceUrl ||
+      img.sourceUrl ||
+      null,
+    large:
+      sizes.find((s: any) => s?.name === "large")?.sourceUrl ||
+      img.sourceUrl ||
+      null,
+  };
+}
+
 function makeQS(sp: Record<string, any>) {
   const qs = new URLSearchParams();
   for (const [k, v] of Object.entries(sp)) {
@@ -41,7 +101,6 @@ export default async function Shop({
   const page = Math.max(1, Number(sp.page || "1") || 1);
   const sort = sp.sort || "latest";
 
-  // kept (even if not used directly)
   await isWooGraphQLAvailable();
 
   const res = await fetchProductsIndex({
@@ -64,24 +123,14 @@ export default async function Shop({
       return {
         slug: p.slug,
         name: p.name,
-
-        // primary price (you already had this)
         price: p.price,
-
-        // ✅ sale fields (REST)
         regularPrice: p.regular_price,
         salePrice: p.sale_price,
         onSale: Boolean(p.on_sale),
-
-        image: { url: p.images?.[0]?.src || null, alt: p.images?.[0]?.alt || null },
+        image: getRestImage(p.images?.[0]),
       };
     }
 
-    // GraphQL (best effort — depends on your Woo GraphQL schema)
-    // Many schemas expose:
-    // - onSale
-    // - regularPrice / salePrice (sometimes raw string with currency)
-    // - price (current)
     const gqlOnSale = Boolean(p.onSale ?? p.on_sale);
     const gqlRegular = p.regularPrice ?? p.regular_price ?? null;
     const gqlSale = p.salePrice ?? p.sale_price ?? null;
@@ -90,13 +139,10 @@ export default async function Shop({
       slug: p.slug,
       name: p.name,
       price: p.price,
-
-      // ✅ sale fields (GraphQL best-effort)
       regularPrice: gqlRegular,
       salePrice: gqlSale,
       onSale: gqlOnSale,
-
-      image: { url: p.image?.sourceUrl || null, alt: p.image?.altText || null },
+      image: getGqlImage(p.image),
     };
   });
 
@@ -164,7 +210,6 @@ export default async function Shop({
                   name={p.name}
                   price={p.price}
                   image={p.image}
-                  // ✅ new props
                   regularPrice={p.regularPrice}
                   salePrice={p.salePrice}
                   onSale={p.onSale}

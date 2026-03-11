@@ -10,6 +10,66 @@ import type { Metadata } from "next";
 
 export const revalidate = 600;
 
+type NormalizedImage = {
+  url: string | null;
+  alt: string | null;
+  thumbnail: string | null;
+  medium: string | null;
+  large: string | null;
+};
+
+function getRestImage(img?: any): NormalizedImage {
+  if (!img) {
+    return {
+      url: null,
+      alt: null,
+      thumbnail: null,
+      medium: null,
+      large: null,
+    };
+  }
+
+  return {
+    url: img.src || null,
+    alt: img.alt || null,
+    thumbnail: img.thumbnail || img.src || null,
+    medium: img.medium || img.src || null,
+    large: img.large || img.src || null,
+  };
+}
+
+function getGqlImage(img?: any): NormalizedImage {
+  if (!img) {
+    return {
+      url: null,
+      alt: null,
+      thumbnail: null,
+      medium: null,
+      large: null,
+    };
+  }
+
+  const sizes = Array.isArray(img.mediaDetails?.sizes) ? img.mediaDetails.sizes : [];
+
+  return {
+    url: img.sourceUrl || null,
+    alt: img.altText || null,
+    thumbnail:
+      sizes.find((s: any) => s?.name === "thumbnail")?.sourceUrl ||
+      img.sourceUrl ||
+      null,
+    medium:
+      sizes.find((s: any) => s?.name === "medium")?.sourceUrl ||
+      sizes.find((s: any) => s?.name === "medium_large")?.sourceUrl ||
+      img.sourceUrl ||
+      null,
+    large:
+      sizes.find((s: any) => s?.name === "large")?.sourceUrl ||
+      img.sourceUrl ||
+      null,
+  };
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "Home",
@@ -32,38 +92,36 @@ export default async function HomePage() {
         slug: p.slug,
         name: p.name,
         price: p.price,
-        image: { url: p.images?.[0]?.src || null, alt: p.images?.[0]?.alt || null }
+        image: getRestImage(p.images?.[0]),
       };
     }
+
     return {
       slug: p.slug,
       name: p.name,
       price: p.price,
-      image: { url: p.image?.sourceUrl || null, alt: p.image?.altText || null }
+      image: getGqlImage(p.image),
     };
   });
 
   return (
     <div>
       <section className="relative overflow-hidden">
-        {/* Background image */}
         <div className="absolute inset-0">
           <Image
-            src="/images/hero-2.jpg"
+            src="/images/hero-2.webp"
             alt="Bisogo — Philippines travel stories and curated essentials"
             fill
             priority
             className="object-cover"
             sizes="100vw"
           />
-          {/* subtle overlay for readability */}
           <div className="absolute inset-0 bg-black/10" />
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-white/40 via-white/10 to-black/10" />
         </div>
 
         <div className="container relative py-14 md:py-20">
           <div className="grid items-end gap-10 lg:grid-cols-12">
-            {/* Left panel */}
             <div className="lg:col-span-7">
               <div className="max-w-2xl rounded-3xl border border-white/30 bg-white/45 p-6 shadow-lg ring-1 ring-black/5 backdrop-blur-xl md:p-10">
                 <div className="text-xs font-semibold tracking-widest uppercase text-[color:var(--color-muted-foreground)]">
@@ -88,7 +146,6 @@ export default async function HomePage() {
                   </Button>
                 </div>
 
-                {/* chips */}
                 <div className="mt-6 flex flex-wrap gap-2">
                   {["Camping", "Beach", "City", "Food", "Summer Fits"].map((label) => (
                     <span
@@ -104,7 +161,6 @@ export default async function HomePage() {
                   Curated in the Philippines • New drops weekly • Ships nationwide
                 </div>
 
-                {/* Newsletter (moved lower, less competing with CTAs) */}
                 <div className="mt-8">
                   <div className="text-sm font-medium">Get updates</div>
                   <div className="mt-3">
@@ -114,7 +170,6 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Right floating "Top Picks" card */}
             <div className="lg:col-span-5">
               <div className="mx-auto max-w-md rounded-3xl border bg-white/70 p-5 shadow-sm md:p-6">
                 <div className="text-sm font-semibold">Top Picks</div>
@@ -126,11 +181,12 @@ export default async function HomePage() {
                       className="group rounded-2xl border bg-white/70 p-2 transition hover:bg-white"
                     >
                       <div className="relative aspect-square overflow-hidden rounded-xl bg-gray-100">
-                        {p.image?.url ? (
+                        {p.image?.thumbnail || p.image?.url ? (
                           <Image
-                            src={p.image.url}
-                            alt={p.image.alt ?? p.name}
+                            src={p.image?.thumbnail || p.image?.url}
+                            alt={p.image?.alt ?? p.name}
                             fill
+                            unoptimized
                             className="object-cover transition group-hover:scale-[1.03]"
                             sizes="120px"
                           />
@@ -185,7 +241,6 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
-      
     </div>
   );
 }
