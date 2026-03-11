@@ -52,7 +52,7 @@ export function ProductCard({
             alt={image.alt || name}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-            sizes="(min-width: 1024px) 25vw, (min-width: 640px) 50vw, 100vw"
+            sizes="(min-width: 1280px) 280px, (min-width: 768px) 33vw, 50vw"
           />
         ) : null}
 

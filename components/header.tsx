@@ -157,7 +157,6 @@ export function Header() {
                 ? false
                 : pathname === n.href ||
                   (n.href !== "/" && pathname.startsWith(n.href));
-
               return (
                 <Link
                   key={n.href}
